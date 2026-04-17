@@ -76,7 +76,6 @@ export class KiroSlashCommandsPlugin implements ExtensionPlugin {
       const message = err instanceof Error ? err.message : 'Command execution failed';
       return { handled: true, message };
     }
-    return { handled: true };
   }
 
   /** Get available commands. */

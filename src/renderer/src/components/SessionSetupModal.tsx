@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { X, FolderOpen } from 'lucide-react';
 import { useInspectorStore } from '../stores/inspector-store';
-import { Button, Input, Label, Textarea } from './ui';
+import { Button, Input, Label, Textarea, Modal } from './ui';
 import type { SessionSetupConfig, McpServerConfig } from '../../../shared/types';
 
 type Mode = 'new' | 'load';
@@ -94,8 +94,7 @@ export function SessionSetupModal({ onClose }: { readonly onClose: () => void })
   }
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-[520px] rounded-lg border border-border bg-background p-5 shadow-xl">
+    <Modal onClose={onClose} className="w-[520px] rounded-lg border border-border bg-background p-5 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold">Session Setup</h2>
           <button className="text-muted-foreground hover:text-foreground" onClick={onClose}>
@@ -146,7 +145,7 @@ export function SessionSetupModal({ onClose }: { readonly onClose: () => void })
         )}
 
         {/* Working directory */}
-        <Label text="Working Directory" className="mb-3">
+        <Label text="Session Working Directory" className="mb-3">
           <div className="flex gap-1">
             <Input value={cwd} onChange={(e) => setCwd(e.target.value)} placeholder="/path/to/project" />
             <button
@@ -181,7 +180,6 @@ export function SessionSetupModal({ onClose }: { readonly onClose: () => void })
 
         {/* Error */}
         {error && <p className="mt-3 text-xs text-destructive">{error}</p>}
-      </div>
-    </div>
+    </Modal>
   );
 }

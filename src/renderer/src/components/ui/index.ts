@@ -4,3 +4,4 @@ export { Textarea } from './Textarea';
 export { Dropdown } from './Dropdown';
 export { Label } from './Label';
 export { Hint } from './Hint';
+export { Modal } from './Modal';

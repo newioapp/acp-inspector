@@ -1,7 +1,7 @@
 /**
  * Type-safe push events from main process → renderer process.
  */
-import type { ConnectionStatus, ProtocolMessage, SessionUpdate, PermissionRequest, AvailableCommand } from './types';
+import type { ConnectionStatus, ProtocolMessage, InspectorSessionUpdate, InspectorPermissionRequest, AvailableCommand } from './types';
 
 export interface MainToRendererEvents {
   readonly 'connection-status': {
@@ -11,8 +11,8 @@ export interface MainToRendererEvents {
     readonly errorStack?: string;
   };
   readonly 'protocol-message': ProtocolMessage;
-  readonly 'session-update': SessionUpdate;
-  readonly 'permission-request': PermissionRequest;
+  readonly 'session-update': InspectorSessionUpdate;
+  readonly 'permission-request': InspectorPermissionRequest;
   readonly 'prompt-done': {
     readonly sessionId: string;
     readonly stopReason: string;

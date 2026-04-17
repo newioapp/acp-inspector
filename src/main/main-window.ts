@@ -69,10 +69,6 @@ export class MainWindowManager {
       await this.window.loadFile(join(__dirname, '../renderer/index.html'));
     }
 
-    if (is.dev) {
-      this.window.webContents.openDevTools({ mode: 'bottom' });
-    }
-
     return this.window;
   }
 }

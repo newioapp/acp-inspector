@@ -8,15 +8,15 @@ import { Trash2, Filter } from 'lucide-react';
 import { useInspectorStore } from '../stores/inspector-store';
 import { Button } from './ui';
 import type { ProtocolMessage } from '../../../shared/types';
+import { isJsonRpcRequest, isJsonRpcResponse } from '../../../shared/types';
 
 /** Extract the method from a JSON-RPC message (request, notification, or response). */
 function getMethod(msg: ProtocolMessage): string {
-  const data = msg.data as Record<string, unknown> | undefined;
-  if (typeof data?.method === 'string') {
+  const data = msg.data;
+  if (isJsonRpcRequest(data)) {
     return data.method;
   }
-  // Responses don't have method — label them
-  if (data?.result !== undefined || data?.error !== undefined) {
+  if (isJsonRpcResponse(data)) {
     return '(response)';
   }
   return '(unknown)';
@@ -24,13 +24,12 @@ function getMethod(msg: ProtocolMessage): string {
 
 /** For session/update messages, extract the sessionUpdate sub-type. */
 function getSessionUpdateType(msg: ProtocolMessage): string | null {
-  const data = msg.data as Record<string, unknown> | undefined;
-  if (data?.method !== 'session/update') {
+  const data = msg.data;
+  if (!isJsonRpcRequest(data) || data.method !== 'session/update') {
     return null;
   }
-  const params = data.params as Record<string, unknown> | undefined;
-  const update = params?.update as Record<string, unknown> | undefined;
-  return (update?.sessionUpdate as string | undefined) ?? null;
+  const update = data.params?.update as Record<string, unknown> | undefined;
+  return typeof update?.sessionUpdate === 'string' ? update.sessionUpdate : null;
 }
 
 const SESSION_UPDATE_TYPES = [
@@ -92,11 +91,12 @@ export function ProtocolLog(): React.JSX.Element {
 
   const sessions = useInspectorStore((s) => s.sessions);
 
-  const activeSessionCreatedAt = useMemo(() => {
+  const activeSessionStartedAt = useMemo(() => {
     if (!activeSessionId) {
       return undefined;
     }
-    return sessions.find((s) => s.sessionId === activeSessionId)?.createdAt;
+    const updatedAt = sessions.find((s) => s.sessionId === activeSessionId)?.updatedAt;
+    return updatedAt ? new Date(updatedAt).getTime() : undefined;
   }, [sessions, activeSessionId]);
 
   const filtered = useMemo(() => {
@@ -108,7 +108,7 @@ export function ProtocolLog(): React.JSX.Element {
           if (msg.sessionId !== activeSessionId) {
             return false;
           }
-        } else if (activeSessionCreatedAt && msg.timestamp >= activeSessionCreatedAt) {
+        } else if (activeSessionStartedAt && msg.timestamp >= activeSessionStartedAt) {
           // No sessionId but arrived after active session was created — hide it
           return false;
         }
@@ -128,7 +128,7 @@ export function ProtocolLog(): React.JSX.Element {
       }
       return true;
     });
-  }, [messages, activeSessionId, activeSessionCreatedAt, hiddenMethods, hiddenSubTypes, searchQuery]);
+  }, [messages, activeSessionId, activeSessionStartedAt, hiddenMethods, hiddenSubTypes, searchQuery]);
 
   const prevSessionRef = useRef(activeSessionId);
 

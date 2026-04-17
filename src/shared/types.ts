@@ -1,6 +1,49 @@
 /**
  * Shared types for the ACP Inspector.
+ *
+ * ACP protocol types are re-exported from @agentclientprotocol/sdk.
+ * Only inspector-specific types (connection config, protocol log, UI state) are defined here.
  */
+
+// Re-export ACP SDK types used across the codebase
+export type {
+  InitializeResponse,
+  AgentCapabilities as AcpAgentCapabilities,
+  Implementation as AcpAgentInfo,
+  AuthMethod as AcpAuthMethod,
+  SessionNotification,
+  SessionUpdate as AcpSessionUpdate,
+  RequestPermissionRequest,
+  RequestPermissionResponse,
+  PermissionOption,
+  PermissionOptionKind,
+  ToolCall,
+  ToolCallUpdate,
+  ToolCallContent,
+  ToolCallLocation,
+  ToolCallStatus,
+  ToolKind,
+  Diff,
+  Terminal,
+  Content,
+  ContentChunk,
+  SessionMode,
+  SessionModeState,
+  SessionModeId,
+  ModelInfo,
+  SessionModelState,
+  AvailableCommand,
+  AvailableCommandsUpdate,
+  McpServerStdio,
+  UsageUpdate,
+  CurrentModeUpdate,
+  Plan,
+  SessionInfo as AcpSessionInfo,
+} from '@agentclientprotocol/sdk';
+
+// ---------------------------------------------------------------------------
+// Inspector-specific types
+// ---------------------------------------------------------------------------
 
 export type ThemeSource = 'system' | 'light' | 'dark';
 
@@ -14,56 +57,94 @@ export interface ConnectionConfig {
   readonly envVars: Readonly<Record<string, string>>;
 }
 
+// ---------------------------------------------------------------------------
+// Protocol message log — inspector-specific, not part of ACP
+// ---------------------------------------------------------------------------
+
+/** A JSON-RPC request or notification captured from the ndjson stream. */
+export interface JsonRpcRequest {
+  readonly jsonrpc?: string;
+  readonly id?: number | string | null;
+  readonly method: string;
+  readonly params?: Record<string, unknown>;
+}
+
+/** A JSON-RPC response captured from the ndjson stream. */
+export interface JsonRpcResponse {
+  readonly jsonrpc?: string;
+  readonly id?: number | string | null;
+  readonly result?: unknown;
+  readonly error?: { readonly code: number; readonly message: string; readonly data?: unknown };
+}
+
+/** Stderr or process-exit events surfaced as protocol messages. */
+export interface ProcessEvent {
+  readonly stderr?: string;
+  readonly event?: string;
+  readonly code?: number | null;
+  readonly signal?: string | null;
+}
+
+/** All possible shapes of ProtocolMessage.data. */
+export type ProtocolMessageData = JsonRpcRequest | JsonRpcResponse | ProcessEvent;
+
 /** A raw JSON-RPC message logged for protocol inspection. */
 export interface ProtocolMessage {
   readonly id: number;
   readonly timestamp: number;
   readonly direction: 'sent' | 'received';
   readonly sessionId?: string;
-  readonly data: unknown;
+  readonly data: ProtocolMessageData;
 }
 
-/** Session info returned after creating or listing sessions. */
-export interface SessionInfo {
+/** Check if a ProtocolMessageData is a JSON-RPC request/notification. */
+export function isJsonRpcRequest(data: ProtocolMessageData): data is JsonRpcRequest {
+  return 'method' in data && typeof (data as JsonRpcRequest).method === 'string';
+}
+
+/** Check if a ProtocolMessageData is a JSON-RPC response. */
+export function isJsonRpcResponse(data: ProtocolMessageData): data is JsonRpcResponse {
+  return 'result' in data || 'error' in data;
+}
+
+// ---------------------------------------------------------------------------
+// Inspector session/output state — wraps ACP types with timestamps
+// ---------------------------------------------------------------------------
+
+/** A session update notification with inspector metadata. */
+export interface InspectorSessionUpdate {
+  readonly timestamp: number;
   readonly sessionId: string;
-  readonly createdAt: number;
+  readonly data: SessionNotification;
+}
+
+/** A permission request with inspector metadata. */
+export interface InspectorPermissionRequest {
+  readonly requestId: string;
+  readonly timestamp: number;
+  readonly sessionId: string;
+  readonly data: RequestPermissionRequest;
+  readonly respondedOptionId?: string;
+}
+
+/** Inspector-enriched session info (adds loaded flag to ACP session). */
+export interface InspectorSessionInfo {
+  readonly sessionId: string;
+  readonly loaded?: boolean;
+  readonly title?: string | null;
+  readonly updatedAt?: string | null;
+  readonly cwd?: string;
   readonly modes?: SessionModeState;
   readonly models?: SessionModelState;
 }
 
-/** ACP session mode. */
-export interface SessionMode {
-  readonly id: string;
-  readonly name: string;
-  readonly description?: string;
-}
-
-/** ACP session mode state. */
-export interface SessionModeState {
-  readonly currentModeId: string;
-  readonly availableModes: readonly SessionMode[];
-}
-
-/** ACP session model info. */
-export interface SessionModel {
-  readonly modelId: string;
-  readonly name: string;
-  readonly description?: string;
-}
-
-/** ACP session model state. */
-export interface SessionModelState {
-  readonly currentModelId: string;
-  readonly availableModels: readonly SessionModel[];
-}
-
-/** ACP agent capabilities returned from initialize. */
+/** ACP agent capabilities returned from initialize, with inspector-friendly booleans. */
 export interface AgentCapabilities {
   readonly protocolVersion: string;
   readonly supportsListSessions: boolean;
   readonly supportsLoadSession: boolean;
   readonly supportsCloseSession: boolean;
-  readonly raw: unknown;
+  readonly raw: InitializeResponse;
 }
 
 /** Config for creating or loading a session. */
@@ -72,7 +153,7 @@ export interface SessionSetupConfig {
   readonly mcpServers: readonly McpServerConfig[];
 }
 
-/** Stdio MCP server definition (matches ACP McpServerStdio). */
+/** Stdio MCP server definition for the session setup UI. */
 export interface McpServerConfig {
   readonly name: string;
   readonly command: string;
@@ -80,27 +161,5 @@ export interface McpServerConfig {
   readonly env?: readonly { readonly name: string; readonly value: string }[];
 }
 
-/** A session update notification relayed from the agent. */
-export interface SessionUpdate {
-  readonly timestamp: number;
-  readonly sessionId?: string;
-  readonly data: unknown;
-}
-
-/** A permission request from the agent. */
-export interface PermissionRequest {
-  readonly requestId: string;
-  readonly timestamp: number;
-  readonly sessionId: string;
-  readonly data: unknown;
-  readonly respondedOptionId?: string;
-}
-
-/** An ACP slash command advertised by the agent (per the ACP slash-commands spec). */
-export interface AvailableCommand {
-  readonly name: string;
-  readonly description: string;
-  readonly input?: {
-    readonly hint?: string;
-  };
-}
+// Re-import for use in type definitions above
+import type { SessionNotification, RequestPermissionRequest, SessionModeState, SessionModelState, InitializeResponse } from '@agentclientprotocol/sdk';

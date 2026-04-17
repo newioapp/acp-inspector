@@ -5,21 +5,9 @@
 import { useState } from 'react';
 import { X, Check, Minus, Copy, Terminal } from 'lucide-react';
 import { useInspectorStore } from '../stores/inspector-store';
-
-interface AgentInfo {
-  readonly name?: string;
-  readonly title?: string;
-  readonly version?: string;
-}
-
-interface AuthMethod {
-  readonly id: string;
-  readonly name: string;
-  readonly description?: string;
-  readonly type?: string;
-  readonly args?: readonly string[];
-  readonly env?: Readonly<Record<string, string>>;
-}
+import { Modal } from './ui';
+import type { InitializeResponse } from '../../../shared/types';
+import type { AuthMethodTerminal } from '@agentclientprotocol/sdk';
 
 function quoteArg(arg: string): string {
   return /[\s"'$`\\]/.test(arg) ? `'${arg.replace(/'/g, "'\\''")}'` : arg;
@@ -45,7 +33,7 @@ function TerminalAuthCard({
   command,
   connectedArgs,
 }: {
-  readonly method: AuthMethod;
+  readonly method: AuthMethodTerminal;
   readonly command: string | null;
   readonly connectedArgs: readonly string[];
 }): React.JSX.Element {
@@ -99,13 +87,6 @@ function TerminalAuthCard({
   );
 }
 
-interface Capabilities {
-  readonly loadSession?: boolean;
-  readonly promptCapabilities?: Record<string, boolean>;
-  readonly mcpCapabilities?: Record<string, boolean>;
-  readonly sessionCapabilities?: Record<string, unknown>;
-}
-
 function CapBadge({ label, enabled }: { readonly label: string; readonly enabled: boolean }): React.JSX.Element {
   return (
     <span
@@ -123,20 +104,18 @@ export function AgentInfoModal({
   data,
   onClose,
 }: {
-  readonly data: unknown;
+  readonly data: InitializeResponse | null;
   readonly onClose: () => void;
 }): React.JSX.Element {
-  const raw = data as Record<string, unknown> | undefined;
-  const agentInfo = raw?.agentInfo as AgentInfo | undefined;
-  const capabilities = raw?.agentCapabilities as Capabilities | undefined;
+  const agentInfo = data?.agentInfo;
+  const capabilities = data?.agentCapabilities;
   const sessionCaps = capabilities?.sessionCapabilities;
-  const authMethods = raw?.authMethods as AuthMethod[] | undefined;
+  const authMethods = data?.authMethods;
   const connectedCommand = useInspectorStore((s) => s.connectedCommand);
   const connectedArgs = useInspectorStore((s) => s.connectedArgs);
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="max-h-[80vh] w-[500px] overflow-y-auto native-scroll rounded-lg border border-border bg-background p-5 shadow-xl select-text">
+    <Modal onClose={onClose} className="max-h-[80vh] w-[500px] overflow-y-auto native-scroll rounded-lg border border-border bg-background p-5 shadow-xl select-text">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold">Agent Information</h2>
           <button className="text-muted-foreground hover:text-foreground" onClick={onClose}>
@@ -164,11 +143,11 @@ export function AgentInfoModal({
               <CapBadge label="listSessions" enabled={sessionCaps?.list !== undefined} />
               {capabilities.promptCapabilities &&
                 Object.entries(capabilities.promptCapabilities).map(([key, val]) => (
-                  <CapBadge key={`prompt-${key}`} label={key} enabled={val} />
+                  <CapBadge key={`prompt-${key}`} label={key} enabled={typeof val === 'boolean' ? val : val !== undefined} />
                 ))}
               {capabilities.mcpCapabilities &&
                 Object.entries(capabilities.mcpCapabilities).map(([key, val]) => (
-                  <CapBadge key={`mcp-${key}`} label={`mcp:${key}`} enabled={val} />
+                  <CapBadge key={`mcp-${key}`} label={`mcp:${key}`} enabled={typeof val === 'boolean' ? val : val !== undefined} />
                 ))}
             </div>
           </div>
@@ -180,7 +159,7 @@ export function AgentInfoModal({
             <h3 className="mb-2 text-xs font-medium text-muted-foreground">Authentication Methods</h3>
             <div className="space-y-2">
               {authMethods.map((method) =>
-                method.type === 'terminal' ? (
+                'type' in method && method.type === 'terminal' ? (
                   <TerminalAuthCard
                     key={method.id}
                     method={method}
@@ -207,7 +186,6 @@ export function AgentInfoModal({
             {JSON.stringify(data, null, 2)}
           </pre>
         </details>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -13,12 +13,13 @@ import type * as acp from '@agentclientprotocol/sdk';
 import type {
   ConnectionConfig,
   AgentCapabilities,
-  SessionInfo,
+  InspectorSessionInfo,
   SessionSetupConfig,
-  SessionModeState,
-  SessionModelState,
+  ProtocolMessageData,
 } from '../shared/types';
 import type { ExtensionPluginRegistry } from './plugins/extension-plugin-registry';
+
+declare const __APP_VERSION__: string;
 
 export interface AcpConnectionListener {
   onStatusChanged(
@@ -26,9 +27,9 @@ export interface AcpConnectionListener {
     error?: string,
     detail?: { pid?: number; errorStack?: string },
   ): void;
-  onProtocolMessage(direction: 'sent' | 'received', data: unknown): void;
-  onSessionUpdate(data: unknown): void;
-  onPermissionRequest(requestId: string, data: unknown): void;
+  onProtocolMessage(direction: 'sent' | 'received', data: ProtocolMessageData): void;
+  onSessionUpdate(data: acp.SessionNotification): void;
+  onPermissionRequest(requestId: string, data: acp.RequestPermissionRequest): void;
   onPromptDone(sessionId: string, stopReason: string): void;
 }
 
@@ -129,7 +130,7 @@ export class AcpConnectionManager implements acp.Client {
       const conn = new ClientSideConnection((_agent) => this, stream);
       this.connection = conn;
 
-      const initParams = {
+      const initParams: acp.InitializeRequest = {
         protocolVersion: PROTOCOL_VERSION,
         clientCapabilities: {
           fs: { readTextFile: true, writeTextFile: true },
@@ -138,13 +139,17 @@ export class AcpConnectionManager implements acp.Client {
           // run manually; it does not invoke `authenticate` itself.
           auth: { terminal: true },
         },
+        clientInfo: {
+          name: 'ACP Inspector',
+          version: __APP_VERSION__,
+        }
       };
 
       const initResult = await conn.initialize(initParams);
 
       // Check if agent supports session/list and session/load
-      const caps = initResult.agentCapabilities as Record<string, unknown> | undefined;
-      const sessionCaps = caps?.sessionCapabilities as Record<string, unknown> | undefined;
+      const caps = initResult.agentCapabilities;
+      const sessionCaps = caps?.sessionCapabilities;
       this.supportsListSessions = sessionCaps?.list !== undefined;
       this.supportsLoadSession = caps?.loadSession === true;
       this.supportsCloseSession = sessionCaps?.close !== undefined;
@@ -215,7 +220,7 @@ export class AcpConnectionManager implements acp.Client {
   }
 
   /** Create a new ACP session. */
-  async newSession(config: SessionSetupConfig): Promise<SessionInfo> {
+  async newSession(config: SessionSetupConfig): Promise<InspectorSessionInfo> {
     const conn = this.getConnection();
     const result = await conn.newSession({
       cwd: config.cwd || this.cwd,
@@ -226,17 +231,16 @@ export class AcpConnectionManager implements acp.Client {
         env: s.env?.map((e) => ({ name: e.name, value: e.value })) ?? [],
       })),
     });
-    const r = result as Record<string, unknown>;
     return {
       sessionId: result.sessionId,
-      createdAt: Date.now(),
-      modes: r.modes as SessionModeState | undefined,
-      models: r.models as SessionModelState | undefined,
+      updatedAt: new Date().toISOString(),
+      modes: result.modes ?? undefined,
+      models: result.models ?? undefined,
     };
   }
 
   /** Load an existing ACP session. */
-  async loadSession(sessionId: string, config: SessionSetupConfig): Promise<SessionInfo> {
+  async loadSession(sessionId: string, config: SessionSetupConfig): Promise<InspectorSessionInfo> {
     const conn = this.getConnection();
     const result = await conn.loadSession({
       sessionId,
@@ -248,12 +252,10 @@ export class AcpConnectionManager implements acp.Client {
         env: s.env?.map((e) => ({ name: e.name, value: e.value })) ?? [],
       })),
     });
-    const r = result as Record<string, unknown>;
     return {
       sessionId,
-      createdAt: Date.now(),
-      modes: r.modes as SessionModeState | undefined,
-      models: r.models as SessionModelState | undefined,
+      modes: result.modes ?? undefined,
+      models: result.models ?? undefined,
     };
   }
 
@@ -264,15 +266,19 @@ export class AcpConnectionManager implements acp.Client {
   }
 
   /** List existing sessions. Only works if agent advertises sessionCapabilities.list. */
-  async listSessions(): Promise<SessionInfo[]> {
+  async listSessions(): Promise<InspectorSessionInfo[]> {
     const conn = this.getConnection();
     if (!this.supportsListSessions) {
       return [];
     }
     try {
       const result = await conn.listSessions({});
-      const now = Date.now();
-      return result.sessions.map((s) => ({ sessionId: s.sessionId, createdAt: now }));
+      return result.sessions.map((s) => ({
+        sessionId: s.sessionId,
+        title: s.title,
+        updatedAt: s.updatedAt,
+        cwd: s.cwd,
+      }));
     } catch {
       return [];
     }
@@ -342,9 +348,8 @@ export class AcpConnectionManager implements acp.Client {
 
   sessionUpdate(params: acp.SessionNotification): Promise<void> {
     this.listener.onSessionUpdate(params);
-    const sessionId = (params as Record<string, unknown>).sessionId as string | undefined;
-    if (sessionId) {
-      this.pluginRegistry.handleSessionUpdate(sessionId, params);
+    if (params.sessionId) {
+      this.pluginRegistry.handleSessionUpdate(params.sessionId, params);
     }
     return Promise.resolve();
   }
