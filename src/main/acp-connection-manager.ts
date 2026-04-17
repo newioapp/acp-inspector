@@ -150,9 +150,9 @@ export class AcpConnectionManager implements acp.Client {
       // Check if agent supports session/list and session/load
       const caps = initResult.agentCapabilities;
       const sessionCaps = caps?.sessionCapabilities;
-      this.supportsListSessions = sessionCaps?.list === true;
+      this.supportsListSessions = sessionCaps?.list !== undefined && sessionCaps.list !== null;
       this.supportsLoadSession = caps?.loadSession === true;
-      this.supportsCloseSession = sessionCaps?.close === true;
+      this.supportsCloseSession = sessionCaps?.close !== undefined && sessionCaps.close !== null;
 
       this.listener.onStatusChanged('connected', undefined, { pid: child.pid });
 
