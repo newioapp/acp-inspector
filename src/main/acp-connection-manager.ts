@@ -142,7 +142,7 @@ export class AcpConnectionManager implements acp.Client {
         clientInfo: {
           name: 'ACP Inspector',
           version: __APP_VERSION__,
-        }
+        },
       };
 
       const initResult = await conn.initialize(initParams);
@@ -150,9 +150,9 @@ export class AcpConnectionManager implements acp.Client {
       // Check if agent supports session/list and session/load
       const caps = initResult.agentCapabilities;
       const sessionCaps = caps?.sessionCapabilities;
-      this.supportsListSessions = sessionCaps?.list !== undefined;
+      this.supportsListSessions = sessionCaps?.list === true;
       this.supportsLoadSession = caps?.loadSession === true;
-      this.supportsCloseSession = sessionCaps?.close !== undefined;
+      this.supportsCloseSession = sessionCaps?.close === true;
 
       this.listener.onStatusChanged('connected', undefined, { pid: child.pid });
 

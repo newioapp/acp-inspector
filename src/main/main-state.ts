@@ -89,12 +89,20 @@ export class MainInspectorState {
   }
 
   clearOutput(sessionId: string | null): void {
+    if (sessionId === null) {
+      return;
+    }
     this.sessionUpdates = this.sessionUpdates.filter((u) => u.sessionId !== sessionId);
     this.permissionRequests = this.permissionRequests.filter((r) => r.sessionId !== sessionId);
   }
 
   clearProtocolLog(sessionId: string | null): void {
-    this.protocolMessages = this.protocolMessages.filter((m) => m.sessionId !== sessionId);
+    if (sessionId === null) {
+      // Clear messages not bound to any session
+      this.protocolMessages = this.protocolMessages.filter((m) => m.sessionId !== undefined);
+    } else {
+      this.protocolMessages = this.protocolMessages.filter((m) => m.sessionId !== sessionId);
+    }
   }
 
   onDisconnected(): void {

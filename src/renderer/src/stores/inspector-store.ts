@@ -165,7 +165,11 @@ export const useInspectorStore = create<InspectorStore>((set, get) => ({
 
   async disconnect(): Promise<void> {
     set({ connectionStatus: 'disconnecting' });
-    await window.api.disconnect();
+    try {
+      await window.api.disconnect();
+    } catch (err) {
+      surfaceError(err);
+    }
     set({
       connectionStatus: 'disconnected',
       sessions: [],
@@ -293,7 +297,10 @@ export const useInspectorStore = create<InspectorStore>((set, get) => ({
     get().addSessionUpdate({
       timestamp: Date.now(),
       sessionId: activeSessionId,
-      data: { sessionId: activeSessionId, update: { sessionUpdate: 'user_message_chunk', content: { type: 'text', text } } },
+      data: {
+        sessionId: activeSessionId,
+        update: { sessionUpdate: 'user_message_chunk', content: { type: 'text', text } },
+      },
     });
     set({ prompting: true });
     try {

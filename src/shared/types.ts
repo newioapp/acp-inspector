@@ -99,7 +99,7 @@ export interface ProtocolMessage {
 
 /** Check if a ProtocolMessageData is a JSON-RPC request/notification. */
 export function isJsonRpcRequest(data: ProtocolMessageData): data is JsonRpcRequest {
-  return 'method' in data && typeof (data as JsonRpcRequest).method === 'string';
+  return 'method' in data && typeof data.method === 'string';
 }
 
 /** Check if a ProtocolMessageData is a JSON-RPC response. */
@@ -162,4 +162,10 @@ export interface McpServerConfig {
 }
 
 // Re-import for use in type definitions above
-import type { SessionNotification, RequestPermissionRequest, SessionModeState, SessionModelState, InitializeResponse } from '@agentclientprotocol/sdk';
+import type {
+  SessionNotification,
+  RequestPermissionRequest,
+  SessionModeState,
+  SessionModelState,
+  InitializeResponse,
+} from '@agentclientprotocol/sdk';
