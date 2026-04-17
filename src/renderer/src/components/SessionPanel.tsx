@@ -115,12 +115,22 @@ export function SessionPanel(): React.JSX.Element {
                   {s.title ?? 'Untitled'}
                 </span>
                 {!s.loaded && (
-                  <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[9px] text-muted-foreground">unloaded</span>
+                  <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[9px] text-muted-foreground">
+                    unloaded
+                  </span>
                 )}
-                {s.updatedAt && <span className="shrink-0 text-muted-foreground">{new Date(s.updatedAt).toLocaleString()}</span>}
+                {s.updatedAt && (
+                  <span className="shrink-0 text-muted-foreground">{new Date(s.updatedAt).toLocaleString()}</span>
+                )}
               </div>
-              {s.cwd && <div className="truncate text-muted-foreground max-w-[200px]" title={s.cwd}>{s.cwd}</div>}
-              <div className="font-mono truncate text-muted-foreground max-w-[200px]" title={s.sessionId}>{s.sessionId}</div>
+              {s.cwd && (
+                <div className="truncate text-muted-foreground max-w-[200px]" title={s.cwd}>
+                  {s.cwd}
+                </div>
+              )}
+              <div className="font-mono truncate text-muted-foreground max-w-[200px]" title={s.sessionId}>
+                {s.sessionId}
+              </div>
             </div>
           ))}
           {sessions.length === 0 && isConnected && (

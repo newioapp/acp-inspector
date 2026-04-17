@@ -101,7 +101,10 @@ void app.whenReady().then(async () => {
         switch (inner.sessionUpdate) {
           case 'available_commands_update': {
             slashCommandStore.set(sessionId, inner.availableCommands);
-            mainWindowManager.send(EVENT_CHANNELS['available-commands'], { sessionId, commands: inner.availableCommands });
+            mainWindowManager.send(EVENT_CHANNELS['available-commands'], {
+              sessionId,
+              commands: inner.availableCommands,
+            });
             break;
           }
           case 'current_mode_update': {
@@ -126,6 +129,17 @@ void app.whenReady().then(async () => {
             break;
           }
           default:
+            // Other update types (agent_message_chunk, tool_call, etc.) are
+            // handled by the renderer via the session-update push event above.
+            break;
+          case 'user_message_chunk':
+          case 'agent_message_chunk':
+          case 'agent_thought_chunk':
+          case 'tool_call':
+          case 'tool_call_update':
+          case 'plan':
+          case 'session_info_update':
+          case 'usage_update':
             break;
         }
       },

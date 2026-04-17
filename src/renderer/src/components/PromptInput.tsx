@@ -151,9 +151,7 @@ export function PromptInput(): React.JSX.Element {
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder={
-          activeSessionId ? 'Type a prompt or a /slash command' : 'Create a session first'
-        }
+        placeholder={activeSessionId ? 'Type a prompt or a /slash command' : 'Create a session first'}
         disabled={!activeSessionId}
       />
 

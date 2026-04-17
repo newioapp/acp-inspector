@@ -1,7 +1,13 @@
 /**
  * Type-safe push events from main process → renderer process.
  */
-import type { ConnectionStatus, ProtocolMessage, InspectorSessionUpdate, InspectorPermissionRequest, AvailableCommand } from './types';
+import type {
+  ConnectionStatus,
+  ProtocolMessage,
+  InspectorSessionUpdate,
+  InspectorPermissionRequest,
+  AvailableCommand,
+} from './types';
 
 export interface MainToRendererEvents {
   readonly 'connection-status': {

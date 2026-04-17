@@ -23,7 +23,13 @@ import {
   Terminal,
   FileDiff,
 } from 'lucide-react';
-import type { InspectorSessionUpdate, ToolCallContent as AcpToolCallContent, ToolCallLocation, ToolKind, ToolCallStatus } from '../../../shared/types';
+import type {
+  InspectorSessionUpdate,
+  ToolCallContent as AcpToolCallContent,
+  ToolCallLocation,
+  ToolKind,
+  ToolCallStatus,
+} from '../../../shared/types';
 import type { Diff, Terminal as AcpTerminal, Content } from '@agentclientprotocol/sdk';
 
 // ---------------------------------------------------------------------------
@@ -79,7 +85,10 @@ function LocationList({ locations }: { readonly locations: readonly ToolCallLoca
       {locations.map((loc, i) => (
         <div key={i} className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
           <FileText size={10} className="shrink-0 opacity-50" />
-          <span>{loc.path}{loc.line != null ? `:${String(loc.line)}` : ''}</span>
+          <span>
+            {loc.path}
+            {loc.line !== null && loc.line !== undefined ? `:${String(loc.line)}` : ''}
+          </span>
         </div>
       ))}
     </div>
@@ -101,10 +110,21 @@ function DiffView({ diff }: { readonly diff: Diff }): React.JSX.Element {
       </button>
       {expanded && (
         <pre className="max-h-64 overflow-auto border-t border-border/50 px-2 py-1 font-mono text-[10px] leading-relaxed">
-          {diff.oldText != null && diff.oldText !== '' && (
-            <span className="text-red-400/80">{diff.oldText.split('\n').map((l) => `- ${l}`).join('\n')}{'\n'}</span>
+          {diff.oldText !== undefined && diff.oldText !== null && diff.oldText !== '' && (
+            <span className="text-red-400/80">
+              {diff.oldText
+                .split('\n')
+                .map((l) => `- ${l}`)
+                .join('\n')}
+              {'\n'}
+            </span>
           )}
-          <span className="text-green-400/80">{diff.newText.split('\n').map((l) => `+ ${l}`).join('\n')}</span>
+          <span className="text-green-400/80">
+            {diff.newText
+              .split('\n')
+              .map((l) => `+ ${l}`)
+              .join('\n')}
+          </span>
         </pre>
       )}
     </div>
@@ -122,7 +142,7 @@ function TerminalRef({ content }: { readonly content: AcpTerminal }): React.JSX.
 
 function TextContentView({ content }: { readonly content: Content }): React.JSX.Element | null {
   const block = content.content;
-  const text = block && 'text' in block ? block.text : undefined;
+  const text = 'text' in block ? block.text : undefined;
   if (!text) {
     return null;
   }
@@ -200,7 +220,7 @@ export function ToolCallCard({
   const kindInfo = KIND_CONFIG[kind] ?? KIND_CONFIG.other;
   const KindIcon = kindInfo.icon;
   const status = merged.status ?? (merged.sessionUpdate === 'tool_call' ? 'in_progress' : undefined);
-  const statusInfo = status ? STATUS_CONFIG[status] ?? undefined : undefined;
+  const statusInfo = status ? (STATUS_CONFIG[status] ?? undefined) : undefined;
   const StatusIcon = statusInfo?.icon;
   const locations = merged.locations ?? [];
   const contents = merged.content ?? [];
@@ -233,8 +253,12 @@ export function ToolCallCard({
       <ContentList contents={contents} />
 
       {/* Raw input/output toggles */}
-      {merged.rawInput != null && <RawInputOutput label="Raw Input" data={merged.rawInput} />}
-      {merged.rawOutput != null && <RawInputOutput label="Raw Output" data={merged.rawOutput} />}
+      {merged.rawInput !== undefined && merged.rawInput !== null && (
+        <RawInputOutput label="Raw Input" data={merged.rawInput} />
+      )}
+      {merged.rawOutput !== undefined && merged.rawOutput !== null && (
+        <RawInputOutput label="Raw Output" data={merged.rawOutput} />
+      )}
 
       {/* Full raw JSON toggle */}
       <button
@@ -247,11 +271,7 @@ export function ToolCallCard({
       </button>
       {showRaw && (
         <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-all rounded bg-background/50 p-2 font-mono text-[10px] text-muted-foreground">
-          {JSON.stringify(
-            items.length === 1 ? items[0].data : items.map((u) => u.data),
-            null,
-            2,
-          )}
+          {JSON.stringify(items.length === 1 ? items[0].data : items.map((u) => u.data), null, 2)}
         </pre>
       )}
     </div>
@@ -263,12 +283,10 @@ function mergeToolCallItems(items: readonly InspectorSessionUpdate[]): ToolCallV
   let merged: ToolCallViewModel = { sessionUpdate: 'tool_call' };
   for (const item of items) {
     const update = item.data.update;
-    if (update) {
-      merged = {
-        ...merged,
-        ...stripUndefined(update as Record<string, unknown>),
-      };
-    }
+    merged = {
+      ...merged,
+      ...stripUndefined(update as Record<string, unknown>),
+    };
   }
   return merged;
 }

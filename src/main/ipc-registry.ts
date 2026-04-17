@@ -33,7 +33,6 @@ export function registerIpcHandlers(handler: IpcApi): void {
     const key = method as keyof IpcApi;
     ipcMain.handle(channel, async (_event, ...args: unknown[]) => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- dynamic dispatch from typed IPC bridge
         return await (handler[key] as (...a: unknown[]) => Promise<unknown>)(...args);
       } catch (err) {
         const info = extractErrorInfo(err);

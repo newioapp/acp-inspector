@@ -37,9 +37,13 @@ function getUpdateType(update: InspectorSessionUpdate): string {
 
 function getChunkText(update: InspectorSessionUpdate): string {
   const inner = update.data.update;
-  if (inner.sessionUpdate === 'agent_message_chunk' || inner.sessionUpdate === 'agent_thought_chunk' || inner.sessionUpdate === 'user_message_chunk') {
+  if (
+    inner.sessionUpdate === 'agent_message_chunk' ||
+    inner.sessionUpdate === 'agent_thought_chunk' ||
+    inner.sessionUpdate === 'user_message_chunk'
+  ) {
     const content = inner.content;
-    if (content && 'text' in content) {
+    if ('text' in content) {
       return content.text;
     }
   }
@@ -210,7 +214,9 @@ export function OutputPanel(): React.JSX.Element {
           if (group.type === 'usage_update') {
             const last = group.items[group.items.length - 1];
             const inner = last.data.update;
-            if (inner.sessionUpdate !== 'usage_update') { return null; }
+            if (inner.sessionUpdate !== 'usage_update') {
+              return null;
+            }
             const used = inner.used;
             const size = inner.size;
             const pct = size > 0 ? Math.round((used / size) * 100) : 0;
@@ -219,21 +225,31 @@ export function OutputPanel(): React.JSX.Element {
               <div key={i} className="mb-2 flex items-center gap-2 text-[11px] text-muted-foreground">
                 <BarChart3 size={11} />
                 <span>{new Date(group.timestamp).toLocaleTimeString()}</span>
-                <span>Context: {used.toLocaleString()} / {size.toLocaleString()} tokens ({String(pct)}%)</span>
-                {cost && <span>· ${cost.amount.toFixed(4)} {cost.currency}</span>}
+                <span>
+                  Context: {used.toLocaleString()} / {size.toLocaleString()} tokens ({String(pct)}%)
+                </span>
+                {cost && (
+                  <span>
+                    · ${cost.amount.toFixed(4)} {cost.currency}
+                  </span>
+                )}
               </div>
             );
           }
 
           if (group.type === 'current_mode_update') {
             const inner = group.items[group.items.length - 1].data.update;
-            if (inner.sessionUpdate !== 'current_mode_update') { return null; }
+            if (inner.sessionUpdate !== 'current_mode_update') {
+              return null;
+            }
             const modeId = inner.currentModeId;
             return (
               <div key={i} className="mb-2 flex items-center gap-2 text-[11px] text-muted-foreground">
                 <Shuffle size={11} className="text-pink-400" />
                 <span>{new Date(group.timestamp).toLocaleTimeString()}</span>
-                <span>Switched agent to <span className="font-medium text-foreground">{modeId}</span></span>
+                <span>
+                  Switched agent to <span className="font-medium text-foreground">{modeId}</span>
+                </span>
               </div>
             );
           }

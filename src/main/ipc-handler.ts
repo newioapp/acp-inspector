@@ -1,7 +1,6 @@
 /**
  * Main process IPC handler implementations.
  */
-/* eslint-disable @typescript-eslint/require-await -- IpcApi interface requires Promise returns */
 import { dialog, nativeTheme } from 'electron';
 import type Store from 'electron-store';
 import type { IpcApi } from '../shared/ipc-api';

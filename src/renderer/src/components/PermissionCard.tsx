@@ -5,7 +5,20 @@ import { useState } from 'react';
 import { useInspectorStore } from '../stores/inspector-store';
 import { Button } from './ui';
 import type { InspectorPermissionRequest } from '../../../shared/types';
-import { ChevronDown, ChevronRight, FileText, Pencil, Trash2, Play, Search, ArrowRightLeft, Brain, Globe, Shuffle, Wrench } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Pencil,
+  Trash2,
+  Play,
+  Search,
+  ArrowRightLeft,
+  Brain,
+  Globe,
+  Shuffle,
+  Wrench,
+} from 'lucide-react';
 
 const KIND_CONFIG: Record<string, { icon: typeof FileText; label: string; color: string }> = {
   read: { icon: FileText, label: 'Read', color: 'text-blue-400' },
@@ -33,14 +46,14 @@ export function PermissionCard({ request }: { readonly request: InspectorPermiss
   const [showRaw, setShowRaw] = useState(false);
 
   const data = request.data;
-  const options = data.options ?? [];
+  const options = data.options;
   const toolCall = data.toolCall;
 
-  const title = toolCall?.title ?? 'Permission Request';
-  const kind = toolCall?.kind ?? 'other';
+  const title = toolCall.title ?? 'Permission Request';
+  const kind = toolCall.kind ?? 'other';
   const kindInfo = KIND_CONFIG[kind] ?? KIND_CONFIG.other;
   const KindIcon = kindInfo.icon;
-  const locations = toolCall?.locations ?? [];
+  const locations = toolCall.locations ?? [];
 
   return (
     <div
@@ -49,9 +62,7 @@ export function PermissionCard({ request }: { readonly request: InspectorPermiss
       {/* Header: icon + title + kind badge */}
       <div className="mb-2 flex items-center gap-2">
         <KindIcon size={14} className={kindInfo.color} />
-        <span className={`text-xs font-medium ${responded ? 'text-success' : 'text-warning'}`}>
-          {title}
-        </span>
+        <span className={`text-xs font-medium ${responded ? 'text-success' : 'text-warning'}`}>{title}</span>
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${kindInfo.color} bg-foreground/5`}>
           {kindInfo.label}
         </span>
@@ -64,7 +75,10 @@ export function PermissionCard({ request }: { readonly request: InspectorPermiss
           {locations.map((loc, i) => (
             <div key={i} className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono">
               <FileText size={10} className="shrink-0 opacity-50" />
-              <span>{loc.path}{loc.line != null ? `:${String(loc.line)}` : ''}</span>
+              <span>
+                {loc.path}
+                {loc.line !== null && loc.line !== undefined ? `:${String(loc.line)}` : ''}
+              </span>
             </div>
           ))}
         </div>
