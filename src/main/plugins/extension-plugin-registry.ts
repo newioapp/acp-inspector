@@ -31,7 +31,7 @@ export class ExtensionPluginRegistry {
 
   /** Route a custom notification from the agent. Activates plugin if needed. */
   handleNotification(method: string, params: Record<string, unknown>): void {
-    const sessionId = params.sessionId as string | undefined;
+    const sessionId = typeof params.sessionId === 'string' ? params.sessionId : undefined;
     log.debug('Received notification', method, sessionId ?? '(no session)');
     if (!sessionId) {
       return;
@@ -47,7 +47,7 @@ export class ExtensionPluginRegistry {
 
   /** Route a custom request from the agent. Activates plugin if needed. */
   async handleRequest(method: string, params: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const sessionId = params.sessionId as string | undefined;
+    const sessionId = typeof params.sessionId === 'string' ? params.sessionId : undefined;
     log.debug('Received request', method, sessionId ?? '(no session)');
     if (!sessionId) {
       return {};

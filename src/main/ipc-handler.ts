@@ -1,7 +1,6 @@
 /**
  * Main process IPC handler implementations.
  */
-/* eslint-disable @typescript-eslint/require-await -- IpcApi interface requires Promise returns */
 import { dialog, nativeTheme } from 'electron';
 import type Store from 'electron-store';
 import type { IpcApi } from '../shared/ipc-api';
@@ -9,7 +8,7 @@ import type {
   ThemeSource,
   ConnectionConfig,
   AgentCapabilities,
-  SessionInfo,
+  InspectorSessionInfo,
   SessionSetupConfig,
   AvailableCommand,
 } from '../shared/types';
@@ -85,6 +84,8 @@ export class IpcHandler implements IpcApi {
     this.store.set('lastCwd', config.cwd);
     const caps = await this.connectionManager.connect(config);
     this.mainState.agentInfo = caps.raw;
+    this.mainState.connectedCommand = config.command;
+    this.mainState.connectedArgs = [...config.args];
     this.mainState.supportsListSessions = caps.supportsListSessions;
     this.mainState.supportsLoadSession = caps.supportsLoadSession;
     this.mainState.supportsCloseSession = caps.supportsCloseSession;
@@ -97,18 +98,28 @@ export class IpcHandler implements IpcApi {
   }
 
   // ACP sessions
-  async newSession(config: SessionSetupConfig): Promise<SessionInfo> {
+  async newSession(config: SessionSetupConfig): Promise<InspectorSessionInfo> {
     const session = await this.connectionManager.newSession(config);
-    this.mainState.sessions.push(session);
+    const enriched = { ...session, loaded: true };
+    this.mainState.sessions.push(enriched);
     this.mainState.activeSessionId = session.sessionId;
-    return session;
+    return enriched;
   }
 
-  async loadSession(sessionId: string, config: SessionSetupConfig): Promise<SessionInfo> {
+  async loadSession(sessionId: string, config: SessionSetupConfig): Promise<InspectorSessionInfo> {
     const session = await this.connectionManager.loadSession(sessionId, config);
-    this.mainState.sessions.push(session);
+    // Replace existing entry (from listSessions) instead of duplicating,
+    // merging to preserve title/cwd/updatedAt from the listed session
+    const idx = this.mainState.sessions.findIndex((s) => s.sessionId === sessionId);
+    const existing = idx >= 0 ? this.mainState.sessions[idx] : undefined;
+    const enriched = { ...existing, ...session, loaded: true };
+    if (idx >= 0) {
+      this.mainState.sessions[idx] = enriched;
+    } else {
+      this.mainState.sessions.push(enriched);
+    }
     this.mainState.activeSessionId = session.sessionId;
-    return session;
+    return enriched;
   }
 
   async closeSession(sessionId: string): Promise<void> {
@@ -119,15 +130,25 @@ export class IpcHandler implements IpcApi {
     }
   }
 
-  async listSessions(): Promise<SessionInfo[]> {
-    const sessions = await this.connectionManager.listSessions();
-    this.mainState.sessions = sessions;
-    return sessions;
+  async listSessions(): Promise<InspectorSessionInfo[]> {
+    const listed = await this.connectionManager.listSessions();
+    const existing = new Map(this.mainState.sessions.map((s) => [s.sessionId, s]));
+    const merged = listed.map((s) => {
+      const prev = existing.get(s.sessionId);
+      return prev ? { ...s, modes: prev.modes, models: prev.models, loaded: prev.loaded } : s;
+    });
+    this.mainState.sessions = merged;
+    return merged;
   }
 
   // ACP prompt
   async sendPrompt(sessionId: string, text: string): Promise<void> {
     this.mainState.prompting = true;
+    this.mainState.sessionUpdates.push({
+      timestamp: Date.now(),
+      sessionId,
+      data: { sessionId, update: { sessionUpdate: 'user_message_chunk', content: { type: 'text', text } } },
+    });
     // Fire-and-forget — prompt completion is pushed via event
     void this.connectionManager.sendPrompt(sessionId, text);
   }
@@ -177,9 +198,11 @@ export class IpcHandler implements IpcApi {
 
   async setMode(sessionId: string, modeId: string): Promise<void> {
     await this.connectionManager.setMode(sessionId, modeId);
+    this.mainState.updateSessionMode(sessionId, modeId);
   }
 
   async setModel(sessionId: string, modelId: string): Promise<void> {
     await this.connectionManager.setModel(sessionId, modelId);
+    this.mainState.updateSessionModel(sessionId, modelId);
   }
 }

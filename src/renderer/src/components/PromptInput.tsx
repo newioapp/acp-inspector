@@ -40,7 +40,7 @@ export function PromptInput(): React.JSX.Element {
     if (query.length === 0) {
       return commands;
     }
-    return commands.filter((c) => c.name.toLowerCase().includes(query) || c.description.toLowerCase().includes(query));
+    return commands.filter((c) => c.name.toLowerCase().includes(query));
   }, [text, commands]);
 
   const showDropdown = filtered.length > 0;
@@ -151,9 +151,7 @@ export function PromptInput(): React.JSX.Element {
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder={
-          activeSessionId ? 'Type a prompt… (Enter to send, Shift+Enter for newline)' : 'Create a session first'
-        }
+        placeholder={activeSessionId ? 'Type a prompt or a /slash command' : 'Create a session first'}
         disabled={!activeSessionId}
       />
 
@@ -168,7 +166,7 @@ export function PromptInput(): React.JSX.Element {
               onChange={(e) => handleModeChange(e.target.value)}
             >
               {activeSession.modes.availableModes.map((m) => (
-                <option key={m.id} value={m.id} title={m.description}>
+                <option key={m.id} value={m.id} title={m.description ?? undefined}>
                   {m.name}
                 </option>
               ))}
@@ -194,7 +192,7 @@ export function PromptInput(): React.JSX.Element {
               onChange={(e) => handleModelChange(e.target.value)}
             >
               {activeSession.models.availableModels.map((m) => (
-                <option key={m.modelId} value={m.modelId} title={m.description}>
+                <option key={m.modelId} value={m.modelId} title={m.description ?? undefined}>
                   {m.name}
                 </option>
               ))}

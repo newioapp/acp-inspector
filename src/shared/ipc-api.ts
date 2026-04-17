@@ -8,7 +8,7 @@ import type {
   ThemeSource,
   ConnectionConfig,
   AgentCapabilities,
-  SessionInfo,
+  InspectorSessionInfo,
   SessionSetupConfig,
   AvailableCommand,
 } from './types';
@@ -35,10 +35,10 @@ export interface IpcApi {
   disconnect(): Promise<void>;
 
   // ACP session management
-  newSession(config: SessionSetupConfig): Promise<SessionInfo>;
-  loadSession(sessionId: string, config: SessionSetupConfig): Promise<SessionInfo>;
+  newSession(config: SessionSetupConfig): Promise<InspectorSessionInfo>;
+  loadSession(sessionId: string, config: SessionSetupConfig): Promise<InspectorSessionInfo>;
   closeSession(sessionId: string): Promise<void>;
-  listSessions(): Promise<SessionInfo[]>;
+  listSessions(): Promise<InspectorSessionInfo[]>;
 
   // ACP prompt
   sendPrompt(sessionId: string, text: string): Promise<void>;

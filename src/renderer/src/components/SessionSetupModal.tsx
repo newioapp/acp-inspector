@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { X, FolderOpen } from 'lucide-react';
 import { useInspectorStore } from '../stores/inspector-store';
-import { Button, Input, Label, Textarea } from './ui';
+import { Button, Input, Label, Textarea, Modal } from './ui';
 import type { SessionSetupConfig, McpServerConfig } from '../../../shared/types';
 
 type Mode = 'new' | 'load';
@@ -94,94 +94,92 @@ export function SessionSetupModal({ onClose }: { readonly onClose: () => void })
   }
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-[520px] rounded-lg border border-border bg-background p-5 shadow-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Session Setup</h2>
-          <button className="text-muted-foreground hover:text-foreground" onClick={onClose}>
-            <X size={16} />
-          </button>
-        </div>
+    <Modal onClose={onClose} className="w-[520px] rounded-lg border border-border bg-background p-5 shadow-xl">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-semibold">Session Setup</h2>
+        <button className="text-muted-foreground hover:text-foreground" onClick={onClose}>
+          <X size={16} />
+        </button>
+      </div>
 
-        {/* Mode tabs */}
-        <div className="mb-4 flex gap-1 rounded-md bg-muted p-0.5">
-          <button
-            className={`flex-1 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
-              mode === 'new' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-            }`}
-            onClick={() => setMode('new')}
-          >
-            New Session
-          </button>
-          <button
-            className={`flex-1 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
-              mode === 'load'
-                ? 'bg-background text-foreground shadow-sm'
-                : supportsLoadSession
-                  ? 'text-muted-foreground hover:text-foreground'
-                  : 'text-muted-foreground/40 cursor-not-allowed'
-            }`}
-            onClick={() => {
-              if (supportsLoadSession) {
-                setMode('load');
-              }
-            }}
-            disabled={!supportsLoadSession}
-            title={supportsLoadSession ? undefined : 'Agent does not support loading sessions'}
-          >
-            Load Session
-          </button>
-        </div>
+      {/* Mode tabs */}
+      <div className="mb-4 flex gap-1 rounded-md bg-muted p-0.5">
+        <button
+          className={`flex-1 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+            mode === 'new' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          }`}
+          onClick={() => setMode('new')}
+        >
+          New Session
+        </button>
+        <button
+          className={`flex-1 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+            mode === 'load'
+              ? 'bg-background text-foreground shadow-sm'
+              : supportsLoadSession
+                ? 'text-muted-foreground hover:text-foreground'
+                : 'text-muted-foreground/40 cursor-not-allowed'
+          }`}
+          onClick={() => {
+            if (supportsLoadSession) {
+              setMode('load');
+            }
+          }}
+          disabled={!supportsLoadSession}
+          title={supportsLoadSession ? undefined : 'Agent does not support loading sessions'}
+        >
+          Load Session
+        </button>
+      </div>
 
-        {/* Session ID (load mode only) */}
-        {mode === 'load' && (
-          <Label text="Session ID" className="mb-3">
-            <Input
-              value={sessionId}
-              onChange={(e) => setSessionId(e.target.value)}
-              placeholder="sess_abc123def456"
-              className="font-mono text-xs"
-            />
-          </Label>
-        )}
-
-        {/* Working directory */}
-        <Label text="Working Directory" className="mb-3">
-          <div className="flex gap-1">
-            <Input value={cwd} onChange={(e) => setCwd(e.target.value)} placeholder="/path/to/project" />
-            <button
-              className="flex h-[38px] w-9 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground hover:text-foreground"
-              onClick={() => void handleSelectCwd()}
-            >
-              <FolderOpen size={14} />
-            </button>
-          </div>
-        </Label>
-
-        {/* MCP servers JSON */}
-        <Label text="MCP Servers (JSON, optional)" className="mb-4">
-          <Textarea
-            value={mcpJson}
-            onChange={(e) => setMcpJson(e.target.value)}
-            placeholder={MCP_PLACEHOLDER}
-            rows={6}
+      {/* Session ID (load mode only) */}
+      {mode === 'load' && (
+        <Label text="Session ID" className="mb-3">
+          <Input
+            value={sessionId}
+            onChange={(e) => setSessionId(e.target.value)}
+            placeholder="sess_abc123def456"
             className="font-mono text-xs"
           />
         </Label>
+      )}
 
-        {/* Actions */}
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="primary" onClick={() => void handleSubmit()} disabled={loading}>
-            {loading ? 'Starting…' : mode === 'load' ? 'Load Session' : 'Create Session'}
-          </Button>
+      {/* Working directory */}
+      <Label text="Session Working Directory" className="mb-3">
+        <div className="flex gap-1">
+          <Input value={cwd} onChange={(e) => setCwd(e.target.value)} placeholder="/path/to/project" />
+          <button
+            className="flex h-[38px] w-9 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground hover:text-foreground"
+            onClick={() => void handleSelectCwd()}
+          >
+            <FolderOpen size={14} />
+          </button>
         </div>
+      </Label>
 
-        {/* Error */}
-        {error && <p className="mt-3 text-xs text-destructive">{error}</p>}
+      {/* MCP servers JSON */}
+      <Label text="MCP Servers (JSON, optional)" className="mb-4">
+        <Textarea
+          value={mcpJson}
+          onChange={(e) => setMcpJson(e.target.value)}
+          placeholder={MCP_PLACEHOLDER}
+          rows={6}
+          className="font-mono text-xs"
+        />
+      </Label>
+
+      {/* Actions */}
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={() => void handleSubmit()} disabled={loading}>
+          {loading ? 'Starting…' : mode === 'load' ? 'Load Session' : 'Create Session'}
+        </Button>
       </div>
-    </div>
+
+      {/* Error */}
+      {error && <p className="mt-3 text-xs text-destructive">{error}</p>}
+    </Modal>
   );
 }

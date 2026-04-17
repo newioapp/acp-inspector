@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { Settings, Info, X } from 'lucide-react';
 import { useInspectorStore } from './stores/inspector-store';
+import { Modal } from './components/ui';
 import { ConnectionBar } from './components/ConnectionBar';
 import { SessionPanel } from './components/SessionPanel';
 import { OutputPanel } from './components/OutputPanel';
@@ -34,6 +35,8 @@ export function App(): React.JSX.Element {
   const connectionPid = useInspectorStore((s) => s.connectionPid);
   const connectionErrorStack = useInspectorStore((s) => s.connectionErrorStack);
   const agentInfo = useInspectorStore((s) => s.agentInfo);
+  const ipcError = useInspectorStore((s) => s.ipcError);
+  const clearIpcError = useInspectorStore((s) => s.clearIpcError);
   const [activeTab, setActiveTab] = useState<Tab>('inspector');
   const [showSettings, setShowSettings] = useState(false);
   const [showErrorDetail, setShowErrorDetail] = useState(false);
@@ -76,6 +79,9 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     const unsub1 = window.api.onConnectionStatus(({ status, error, pid, errorStack }) => {
       setConnectionStatus(status, error, pid, errorStack);
+      if (status === 'connected') {
+        setShowAgentInfo(true);
+      }
       if (status === 'error' && errorStack) {
         setShowErrorDetail(true);
       }
@@ -225,22 +231,44 @@ export function App(): React.JSX.Element {
 
       {/* Error detail modal */}
       {showErrorDetail && connectionError && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="max-h-[80vh] w-[600px] rounded-lg border border-border bg-background p-5 shadow-xl">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-destructive">Connection Error</h2>
-              <button className="text-muted-foreground hover:text-foreground" onClick={() => setShowErrorDetail(false)}>
-                <X size={16} />
-              </button>
-            </div>
-            <p className="mb-3 text-sm text-foreground select-text">{connectionError}</p>
-            {connectionErrorStack && (
-              <pre className="native-scroll max-h-[50vh] overflow-auto rounded-md bg-muted p-3 text-xs font-mono text-muted-foreground select-text">
-                {connectionErrorStack}
-              </pre>
-            )}
+        <Modal
+          onClose={() => setShowErrorDetail(false)}
+          className="max-h-[80vh] w-[600px] rounded-lg border border-border bg-background p-5 shadow-xl"
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-destructive">Connection Error</h2>
+            <button className="text-muted-foreground hover:text-foreground" onClick={() => setShowErrorDetail(false)}>
+              <X size={16} />
+            </button>
           </div>
-        </div>
+          <p className="mb-3 text-sm text-foreground select-text">{connectionError}</p>
+          {connectionErrorStack && (
+            <pre className="native-scroll max-h-[50vh] overflow-auto rounded-md bg-muted p-3 text-xs font-mono text-muted-foreground select-text">
+              {connectionErrorStack}
+            </pre>
+          )}
+        </Modal>
+      )}
+
+      {/* IPC error modal */}
+      {ipcError && (
+        <Modal
+          onClose={clearIpcError}
+          className="max-h-[80vh] w-[600px] rounded-lg border border-border bg-background p-5 shadow-xl"
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-destructive">Error</h2>
+            <button className="text-muted-foreground hover:text-foreground" onClick={clearIpcError}>
+              <X size={16} />
+            </button>
+          </div>
+          <p className="mb-3 text-sm text-foreground select-text">{ipcError.message}</p>
+          {ipcError.stack && (
+            <pre className="native-scroll max-h-[50vh] overflow-auto rounded-md bg-muted p-3 text-xs font-mono text-muted-foreground select-text">
+              {ipcError.stack}
+            </pre>
+          )}
+        </Modal>
       )}
     </div>
   );

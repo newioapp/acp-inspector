@@ -13,7 +13,7 @@ import { ExtensionPluginRegistry } from './plugins/extension-plugin-registry';
 import { createKiroSlashCommandsPlugin } from './plugins/kiro-slash-commands-plugin';
 import { SlashCommandStore } from './slash-command-store';
 import { EVENT_CHANNELS } from '../shared/ipc-events';
-import type { AvailableCommand } from '../shared/types';
+import { isJsonRpcRequest, isJsonRpcResponse } from '../shared/types';
 
 app.name = 'ACP Inspector';
 
@@ -59,11 +59,17 @@ void app.whenReady().then(async () => {
         });
       },
       onProtocolMessage(direction, data) {
-        const d = data as Record<string, unknown>;
-        const params = d.params as Record<string, unknown> | undefined;
-        const result = d.result as Record<string, unknown> | undefined;
-        const rpcId = d.id;
-        let sessionId = (params?.sessionId as string | undefined) ?? (result?.sessionId as string | undefined);
+        let sessionId: string | undefined;
+        let rpcId: number | string | undefined;
+
+        if (isJsonRpcRequest(data)) {
+          sessionId = data.params?.sessionId as string | undefined;
+          rpcId = data.id ?? undefined;
+        } else if (isJsonRpcResponse(data)) {
+          const result = data.result as Record<string, unknown> | undefined;
+          sessionId = result?.sessionId as string | undefined;
+          rpcId = data.id ?? undefined;
+        }
 
         // Track request id → sessionId so we can correlate responses
         if (rpcId !== undefined && sessionId) {
@@ -85,31 +91,60 @@ void app.whenReady().then(async () => {
         mainWindowManager.send(EVENT_CHANNELS['protocol-message'], msg);
       },
       onSessionUpdate(data) {
-        const sessionId = (data as Record<string, unknown>).sessionId as string | undefined;
+        const sessionId = data.sessionId;
         const update = { timestamp: Date.now(), sessionId, data };
         mainState.sessionUpdates.push(update);
         mainWindowManager.send(EVENT_CHANNELS['session-update'], update);
 
-        // Intercept available_commands_update → store and push to renderer
-        const inner = (data as Record<string, unknown>).update as Record<string, unknown> | undefined;
-        if (sessionId && inner?.sessionUpdate === 'available_commands_update') {
-          const commands = (inner.availableCommands as AvailableCommand[] | undefined) ?? [];
-          slashCommandStore.set(sessionId, commands);
-          mainWindowManager.send(EVENT_CHANNELS['available-commands'], { sessionId, commands });
-        }
-
-        // Intercept mode/model updates from the agent
-        if (sessionId && inner?.sessionUpdate === 'current_mode_update') {
-          const modeId = inner.modeId as string;
-          mainWindowManager.send(EVENT_CHANNELS['mode-changed'], { sessionId, modeId });
-        }
-        if (sessionId && inner?.sessionUpdate === 'current_model_update') {
-          const modelId = inner.modelId as string;
-          mainWindowManager.send(EVENT_CHANNELS['model-changed'], { sessionId, modelId });
+        // Intercept specific update types
+        const inner = data.update;
+        switch (inner.sessionUpdate) {
+          case 'available_commands_update': {
+            slashCommandStore.set(sessionId, inner.availableCommands);
+            mainWindowManager.send(EVENT_CHANNELS['available-commands'], {
+              sessionId,
+              commands: inner.availableCommands,
+            });
+            break;
+          }
+          case 'current_mode_update': {
+            const modeId = inner.currentModeId;
+            mainState.updateSessionMode(sessionId, modeId);
+            mainWindowManager.send(EVENT_CHANNELS['mode-changed'], { sessionId, modeId });
+            break;
+          }
+          case 'config_option_update': {
+            for (const opt of inner.configOptions) {
+              if (opt.type !== 'select') {
+                continue;
+              }
+              if (opt.category === 'mode') {
+                mainState.updateSessionMode(sessionId, opt.currentValue);
+                mainWindowManager.send(EVENT_CHANNELS['mode-changed'], { sessionId, modeId: opt.currentValue });
+              } else if (opt.category === 'model') {
+                mainState.updateSessionModel(sessionId, opt.currentValue);
+                mainWindowManager.send(EVENT_CHANNELS['model-changed'], { sessionId, modelId: opt.currentValue });
+              }
+            }
+            break;
+          }
+          default:
+            // Other update types (agent_message_chunk, tool_call, etc.) are
+            // handled by the renderer via the session-update push event above.
+            break;
+          case 'user_message_chunk':
+          case 'agent_message_chunk':
+          case 'agent_thought_chunk':
+          case 'tool_call':
+          case 'tool_call_update':
+          case 'plan':
+          case 'session_info_update':
+          case 'usage_update':
+            break;
         }
       },
       onPermissionRequest(requestId, data) {
-        const sessionId = (data as Record<string, unknown>).sessionId as string;
+        const sessionId = data.sessionId;
         const req = { requestId, timestamp: Date.now(), sessionId, data };
         mainState.permissionRequests.push(req);
         mainWindowManager.send(EVENT_CHANNELS['permission-request'], req);
