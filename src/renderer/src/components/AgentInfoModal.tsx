@@ -2,7 +2,9 @@
  * AgentInfoModal — displays agent info, capabilities, and auth methods
  * from the ACP initialize response.
  */
-import { X, Check, Minus } from 'lucide-react';
+import { useState } from 'react';
+import { X, Check, Minus, Copy, Terminal } from 'lucide-react';
+import { useInspectorStore } from '../stores/inspector-store';
 
 interface AgentInfo {
   readonly name?: string;
@@ -14,6 +16,87 @@ interface AuthMethod {
   readonly id: string;
   readonly name: string;
   readonly description?: string;
+  readonly type?: string;
+  readonly args?: readonly string[];
+  readonly env?: Readonly<Record<string, string>>;
+}
+
+function quoteArg(arg: string): string {
+  return /[\s"'$`\\]/.test(arg) ? `'${arg.replace(/'/g, "'\\''")}'` : arg;
+}
+
+function buildTerminalCommand(
+  command: string,
+  connectedArgs: readonly string[],
+  methodArgs: readonly string[],
+  env: Readonly<Record<string, string>> | undefined,
+): string {
+  const envPrefix = env
+    ? Object.entries(env)
+        .map(([k, v]) => `${k}=${quoteArg(v)}`)
+        .join(' ')
+    : '';
+  const parts = [command, ...connectedArgs, ...methodArgs].map(quoteArg);
+  return [envPrefix, ...parts].filter((p) => p.length > 0).join(' ');
+}
+
+function TerminalAuthCard({
+  method,
+  command,
+  connectedArgs,
+}: {
+  readonly method: AuthMethod;
+  readonly command: string | null;
+  readonly connectedArgs: readonly string[];
+}): React.JSX.Element {
+  const [copied, setCopied] = useState(false);
+
+  const fullCommand = command
+    ? buildTerminalCommand(command, connectedArgs, method.args ?? [], method.env)
+    : null;
+
+  async function handleCopy(): Promise<void> {
+    if (!fullCommand) return;
+    await navigator.clipboard.writeText(fullCommand);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <div className="rounded-md bg-muted p-3">
+      <div className="flex items-center gap-2">
+        <Terminal size={12} className="text-muted-foreground" />
+        <div className="text-sm font-medium">{method.name}</div>
+        <span className="rounded bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground">terminal</span>
+      </div>
+      {method.description && (
+        <div className="mt-0.5 text-xs text-muted-foreground select-text">{method.description}</div>
+      )}
+
+      {fullCommand ? (
+        <>
+          <div className="mt-2 text-xs text-muted-foreground">Run this command in a terminal to authenticate:</div>
+          <div className="mt-1 flex items-start gap-1">
+            <pre className="flex-1 overflow-x-auto rounded border border-border bg-background p-2 text-xs font-mono select-text">
+              {fullCommand}
+            </pre>
+            <button
+              onClick={() => void handleCopy()}
+              className="shrink-0 rounded border border-border p-2 text-muted-foreground hover:text-foreground"
+              title="Copy command"
+            >
+              <Copy size={12} />
+            </button>
+          </div>
+          {copied && <div className="mt-1 text-[10px] text-success">Copied</div>}
+        </>
+      ) : (
+        <div className="mt-2 rounded border border-border bg-background p-2 text-xs text-muted-foreground">
+          Connect to an agent first to see the terminal command.
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface Capabilities {
@@ -48,6 +131,8 @@ export function AgentInfoModal({
   const capabilities = raw?.agentCapabilities as Capabilities | undefined;
   const sessionCaps = capabilities?.sessionCapabilities;
   const authMethods = raw?.authMethods as AuthMethod[] | undefined;
+  const connectedCommand = useInspectorStore((s) => s.connectedCommand);
+  const connectedArgs = useInspectorStore((s) => s.connectedArgs);
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -94,14 +179,23 @@ export function AgentInfoModal({
           <div className="mb-4">
             <h3 className="mb-2 text-xs font-medium text-muted-foreground">Authentication Methods</h3>
             <div className="space-y-2">
-              {authMethods.map((method) => (
-                <div key={method.id} className="rounded-md bg-muted p-3">
-                  <div className="text-sm font-medium">{method.name}</div>
-                  {method.description && (
-                    <div className="mt-0.5 text-xs text-muted-foreground select-text">{method.description}</div>
-                  )}
-                </div>
-              ))}
+              {authMethods.map((method) =>
+                method.type === 'terminal' ? (
+                  <TerminalAuthCard
+                    key={method.id}
+                    method={method}
+                    command={connectedCommand}
+                    connectedArgs={connectedArgs}
+                  />
+                ) : (
+                  <div key={method.id} className="rounded-md bg-muted p-3">
+                    <div className="text-sm font-medium">{method.name}</div>
+                    {method.description && (
+                      <div className="mt-0.5 text-xs text-muted-foreground select-text">{method.description}</div>
+                    )}
+                  </div>
+                ),
+              )}
             </div>
           </div>
         )}

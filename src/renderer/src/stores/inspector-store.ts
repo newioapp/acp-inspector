@@ -28,6 +28,10 @@ interface InspectorState {
   readonly supportsLoadSession: boolean;
   readonly supportsCloseSession: boolean;
   readonly envVars: Readonly<Record<string, string>>;
+  /** Command + args used for the active connection — surfaced to the UI so the
+   *  terminal-auth card can show the exact command the user needs to run. */
+  readonly connectedCommand: string | null;
+  readonly connectedArgs: readonly string[];
 
   // Sessions
   readonly sessions: SessionInfo[];
@@ -100,6 +104,8 @@ export const useInspectorStore = create<InspectorStore>((set, get) => ({
   protocolMessages: [],
   permissionRequests: [],
   availableCommands: {},
+  connectedCommand: null,
+  connectedArgs: [],
 
   hydrate(snapshot: InspectorStateSnapshot): void {
     set({
@@ -122,7 +128,13 @@ export const useInspectorStore = create<InspectorStore>((set, get) => ({
   },
 
   async connect(config: ConnectionConfig): Promise<void> {
-    set({ connectionStatus: 'connecting', connectionError: undefined, agentInfo: null });
+    set({
+      connectionStatus: 'connecting',
+      connectionError: undefined,
+      agentInfo: null,
+      connectedCommand: config.command,
+      connectedArgs: [...config.args],
+    });
     try {
       const caps = await window.api.connect(config);
       set({
@@ -135,6 +147,8 @@ export const useInspectorStore = create<InspectorStore>((set, get) => ({
       set({
         connectionStatus: 'error',
         connectionError: err instanceof Error ? err.message : 'Connection failed',
+        connectedCommand: null,
+        connectedArgs: [],
       });
     }
   },
@@ -155,6 +169,8 @@ export const useInspectorStore = create<InspectorStore>((set, get) => ({
       sessionUpdates: [],
       protocolMessages: [],
       availableCommands: {},
+      connectedCommand: null,
+      connectedArgs: [],
     });
   },
 

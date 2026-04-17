@@ -133,6 +133,10 @@ export class AcpConnectionManager implements acp.Client {
         protocolVersion: PROTOCOL_VERSION,
         clientCapabilities: {
           fs: { readTextFile: true, writeTextFile: true },
+          // Advertised so agents include `type: "terminal"` methods in
+          // `authMethods`. The inspector displays the command for the user to
+          // run manually; it does not invoke `authenticate` itself.
+          auth: { terminal: true },
         },
       };
 
