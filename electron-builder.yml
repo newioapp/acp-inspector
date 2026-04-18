@@ -1,0 +1,37 @@
+appId: app.newio.acp-inspector
+productName: ACP Inspector
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!{.env,.env.*,.npmrc}'
+npmRebuild: false
+
+publish:
+  provider: github
+  owner: newioapp
+  repo: acp-inspector
+
+# --- macOS ---
+mac:
+  entitlementsInherit: build/entitlements.mac.plist
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  notarize: true
+  artifactName: acp-inspector-${version}-mac-${arch}.${ext}
+  target:
+    - dmg
+    - zip
+dmg:
+  writeUpdateInfo: false
+
+# --- Linux ---
+linux:
+  category: Development
+  artifactName: acp-inspector-${version}-linux-${arch}.${ext}
+  target:
+    - AppImage
+    - deb

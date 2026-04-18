@@ -29,6 +29,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "build:unsigned": "./scripts/build-unsigned.sh",
+    "build:signed": "./scripts/build-signed.sh",
     "clean": "rm -rf out dist",
     "prepare": "husky"
   },
