@@ -27,6 +27,8 @@ jobs:
 
   build-mac:
     needs: prepare
+    # Note: macos-15-intel is used for x64 builds. If GitHub deprecates it,
+    # switch to macos-latest with --x64 cross-compilation.
     runs-on: ${{ matrix.arch == 'x64' && 'macos-15-intel' || 'macos-latest' }}
     timeout-minutes: 30
     strategy:
@@ -34,8 +36,8 @@ jobs:
       matrix:
         arch: [arm64, x64]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -72,7 +74,7 @@ jobs:
         if: always()
         run: security delete-keychain $RUNNER_TEMP/build.keychain-db 2>/dev/null || true
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: mac-${{ matrix.arch }}
           retention-days: 1
@@ -90,8 +92,8 @@ jobs:
       matrix:
         arch: [x64, arm64]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -106,7 +108,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: linux-${{ matrix.arch }}
           retention-days: 1
@@ -120,18 +122,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           sparse-checkout: scripts
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
 
       - name: Install merge script dependencies
-        run: npm install js-yaml
+        run: npm install js-yaml@4
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v6
         with:
           path: artifacts
 

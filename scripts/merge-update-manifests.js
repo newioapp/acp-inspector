@@ -55,6 +55,8 @@ function mergeMacManifests(artifactsDir) {
     }
 
     const base = parsed[0];
+    // Top-level path/sha512 point to a single file from whichever arch sorted first.
+    // This is fine — electron-updater selects the correct arch from the files array.
     const merged = { version: base.version, files: mergedFiles, path: base.path, sha512: base.sha512, releaseDate: base.releaseDate };
     const output = yaml.dump(merged, { lineWidth: -1, quotingType: "'", forceQuotes: false });
     fs.writeFileSync(path.join(artifactsDir, ymlName), output);
