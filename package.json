@@ -39,6 +39,7 @@
     "@electron-toolkit/utils": "^4.0.0",
     "electron-store": "^8.2.0",
     "lucide-react": "^0.577.0",
+    "zod": "^4.3.6",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
