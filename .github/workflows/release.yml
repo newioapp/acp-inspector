@@ -62,6 +62,12 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -k "" $KEYCHAIN_PATH
           security list-keychains -d user -s $KEYCHAIN_PATH login.keychain-db
 
+      - name: Select Xcode 26 (required for .icon asset catalog)
+        run: |
+          XCODE_26=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          echo "Using $XCODE_26"
+          sudo xcode-select -s "$XCODE_26/Contents/Developer"
+
       - name: Build Electron app
         run: npx electron-vite build && npx electron-builder --mac --${{ matrix.arch }}
         env:
