@@ -29,7 +29,7 @@ jobs:
     needs: prepare
     # Note: macos-15-intel is used for x64 builds. If GitHub deprecates it,
     # switch to macos-latest with --x64 cross-compilation.
-    runs-on: ${{ matrix.arch == 'x64' && 'macos-15-intel' || 'macos-latest' }}
+    runs-on: ${{ matrix.arch == 'x64' && 'macos-15-intel' || 'macos-26' }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
