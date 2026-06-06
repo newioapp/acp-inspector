@@ -17,7 +17,23 @@ import { isJsonRpcRequest, isJsonRpcResponse } from '../shared/types';
 
 app.name = 'ACP Inspector';
 
+// Enforce a single running instance: a second launch focuses the existing window
+// instead of starting another copy. Set once the window manager exists.
+let activeWindowManager: MainWindowManager | undefined;
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    activeWindowManager?.focus();
+  });
+}
+
 void app.whenReady().then(async () => {
+  // A primary instance already owns the lock; this duplicate is quitting.
+  if (!gotSingleInstanceLock) {
+    return;
+  }
   // Windows AppUserModelID — must match `appId` in electron-builder.yml.
   electronApp.setAppUserModelId('app.newio.acp-inspector');
 
@@ -27,6 +43,7 @@ void app.whenReady().then(async () => {
 
   const store = createStore();
   const mainWindowManager = new MainWindowManager(store);
+  activeWindowManager = mainWindowManager;
   const mainState = new MainInspectorState();
 
   // Extension plugin registry — captures custom ACP methods
