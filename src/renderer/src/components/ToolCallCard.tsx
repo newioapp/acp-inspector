@@ -285,7 +285,7 @@ function mergeToolCallItems(items: readonly InspectorSessionUpdate[]): ToolCallV
     const update = item.data.update;
     merged = {
       ...merged,
-      ...stripUndefined(update as Record<string, unknown>),
+      ...stripUndefined(update),
     };
   }
   return merged;
