@@ -19,6 +19,17 @@ export class MainWindowManager {
     return this.window;
   }
 
+  /** Focus the main window, restoring it if minimized. */
+  focus(): void {
+    if (!this.window) {
+      return;
+    }
+    if (this.window.isMinimized()) {
+      this.window.restore();
+    }
+    this.window.focus();
+  }
+
   send(channel: string, event: unknown): void {
     this.window?.webContents.send(channel, event);
   }
@@ -34,6 +45,9 @@ export class MainWindowManager {
       minHeight: 560,
       show: false,
       titleBarStyle: 'default',
+      // Hide the default Chromium menu bar on Linux/Windows (toggle with Alt).
+      // No effect on macOS, where the menu lives in the system menu bar.
+      autoHideMenuBar: true,
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
         sandbox: false,
