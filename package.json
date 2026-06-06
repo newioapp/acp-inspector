@@ -2,7 +2,7 @@
   "name": "acp-inspector",
   "version": "1.0.0",
   "private": true,
-  "description": "ACP Inspector — developer tool for testing and debugging ACP agents",
+  "description": "ACP Inspector - developer tool for testing and debugging ACP agents",
   "author": {
     "name": "Nan Qin",
     "email": "qinnan0416@gmail.com",

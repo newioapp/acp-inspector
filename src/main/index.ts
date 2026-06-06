@@ -18,7 +18,8 @@ import { isJsonRpcRequest, isJsonRpcResponse } from '../shared/types';
 app.name = 'ACP Inspector';
 
 void app.whenReady().then(async () => {
-  electronApp.setAppUserModelId('dev.newio.acp-inspector');
+  // Windows AppUserModelID — must match `appId` in electron-builder.yml.
+  electronApp.setAppUserModelId('app.newio.acp-inspector');
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window);
