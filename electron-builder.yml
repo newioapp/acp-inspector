@@ -33,6 +33,16 @@ dmg:
 # --- Linux ---
 linux:
   category: Development
+  # Directory of standard-size PNGs (16–512). A single 1024x1024 icon lands in a
+  # non-standard hicolor size dir that GNOME's launcher/dock ignores.
+  icon: build/icons
+  # Short one-line summary (Debian control "Description" synopsis line).
+  synopsis: Developer tool for testing and debugging ACP agents
+  # Long description; also becomes the .desktop "Comment".
+  description: >-
+    ACP Inspector is a developer tool for testing and debugging agents that speak
+    the Agent Client Protocol (ACP) - inspect the JSON-RPC traffic, sessions,
+    permission requests, and slash commands.
   artifactName: acp-inspector-${version}-linux-${arch}.${ext}
   target:
     - AppImage
