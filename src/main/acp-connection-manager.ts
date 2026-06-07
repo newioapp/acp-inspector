@@ -231,11 +231,12 @@ export class AcpConnectionManager implements acp.Client {
         env: s.env?.map((e) => ({ name: e.name, value: e.value })) ?? [],
       })),
     });
+    const { models, modes } = extractSessionConfig(result);
     return {
       sessionId: result.sessionId,
       updatedAt: new Date().toISOString(),
-      modes: result.modes ?? undefined,
-      models: result.models ?? undefined,
+      modes,
+      models,
     };
   }
 
@@ -252,10 +253,11 @@ export class AcpConnectionManager implements acp.Client {
         env: s.env?.map((e) => ({ name: e.name, value: e.value })) ?? [],
       })),
     });
+    const { models, modes } = extractSessionConfig(result);
     return {
       sessionId,
-      modes: result.modes ?? undefined,
-      models: result.models ?? undefined,
+      modes,
+      models,
     };
   }
 
@@ -332,7 +334,18 @@ export class AcpConnectionManager implements acp.Client {
   /** Set the session model. */
   async setModel(sessionId: string, modelId: string): Promise<void> {
     const conn = this.getConnection();
-    await conn.unstable_setSessionModel({ sessionId, modelId });
+    try {
+      await conn.unstable_setSessionModel({ sessionId, modelId });
+    } catch (err: unknown) {
+      // Older agents expose model selection via the experimental
+      // `unstable_setSessionModel`; newer agents drop it in favour of the stable
+      // `setSessionConfigOption` and reply "method not found" (-32601). Only fall
+      // back in that case — a genuine failure should surface its own error.
+      if (!isMethodNotFound(err)) {
+        throw err;
+      }
+      await conn.setSessionConfigOption({ sessionId, configId: 'model', value: modelId });
+    }
   }
 
   private getConnection(): ClientSideConnection {
@@ -393,4 +406,103 @@ export class AcpConnectionManager implements acp.Client {
     this.pluginRegistry.handleNotification(method, params);
     return Promise.resolve();
   }
+}
+
+/** A `select`-typed session config option (narrowed from the union). */
+type SelectConfigOption = Extract<acp.SessionConfigOption, { type: 'select' }>;
+
+/** JSON-RPC "method not found" — the agent does not implement the requested method. */
+const JSON_RPC_METHOD_NOT_FOUND = -32601;
+
+/** True when an ACP rejection indicates the method isn't implemented by the agent. */
+export function isMethodNotFound(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) {
+    return false;
+  }
+  const obj = err as Record<string, unknown>;
+  return obj.code === JSON_RPC_METHOD_NOT_FOUND;
+}
+
+/**
+ * Derive model/mode UI state from a session response.
+ *
+ * Newer agents report selectable models/modes through the generic `configOptions`
+ * array (categories 'model' / 'mode'); older agents use the dedicated
+ * `models`/`modes` fields. Prefer configOptions, falling back to the legacy
+ * fields, so both styles populate the inspector's dropdowns.
+ */
+export function extractSessionConfig(result: acp.NewSessionResponse | acp.LoadSessionResponse): {
+  models: acp.SessionModelState | undefined;
+  modes: acp.SessionModeState | undefined;
+} {
+  const configOptions = result.configOptions ?? undefined;
+  return {
+    models: modelStateFromConfigOptions(configOptions) ?? result.models ?? undefined,
+    modes: modeStateFromConfigOptions(configOptions) ?? result.modes ?? undefined,
+  };
+}
+
+/** Build SessionModelState from the 'model' select config option, if present. */
+function modelStateFromConfigOptions(
+  configOptions: readonly acp.SessionConfigOption[] | undefined,
+): acp.SessionModelState | undefined {
+  const select = findSelectByCategory(configOptions, 'model');
+  if (!select) {
+    return undefined;
+  }
+  return {
+    availableModels: flattenSelectOptions(select.options).map((o) => ({
+      modelId: o.value,
+      name: o.name,
+      description: o.description ?? null,
+    })),
+    currentModelId: select.currentValue,
+  };
+}
+
+/** Build SessionModeState from the 'mode' select config option, if present. */
+function modeStateFromConfigOptions(
+  configOptions: readonly acp.SessionConfigOption[] | undefined,
+): acp.SessionModeState | undefined {
+  const select = findSelectByCategory(configOptions, 'mode');
+  if (!select) {
+    return undefined;
+  }
+  return {
+    availableModes: flattenSelectOptions(select.options).map((o) => ({
+      id: o.value,
+      name: o.name,
+      description: o.description ?? null,
+    })),
+    currentModeId: select.currentValue,
+  };
+}
+
+/** Find the first `select` config option matching the given category. */
+function findSelectByCategory(
+  configOptions: readonly acp.SessionConfigOption[] | undefined,
+  category: acp.SessionConfigOptionCategory,
+): SelectConfigOption | undefined {
+  if (!configOptions) {
+    return undefined;
+  }
+  for (const opt of configOptions) {
+    if (opt.type === 'select' && opt.category === category) {
+      return opt;
+    }
+  }
+  return undefined;
+}
+
+/** Flatten possibly-grouped select options into a flat list of option values. */
+function flattenSelectOptions(options: acp.SessionConfigSelectOptions): acp.SessionConfigSelectOption[] {
+  const result: acp.SessionConfigSelectOption[] = [];
+  for (const item of options) {
+    if ('value' in item) {
+      result.push(item);
+    } else if ('options' in item) {
+      result.push(...item.options);
+    }
+  }
+  return result;
 }

@@ -127,7 +127,7 @@ describe('MainInspectorState', () => {
       state.connectedCommand = 'test';
       state.agentInfo = {} as any;
       state.sessionUpdates = [{ timestamp: 1, sessionId: 's1', data: {} as any }];
-      state.protocolMessages = [{ id: 1, timestamp: 1, direction: 'sent', data: {} as any }];
+      state.protocolMessages = [{ id: 1, timestamp: 1, direction: 'sent', data: {} }];
 
       state.onDisconnected();
 
