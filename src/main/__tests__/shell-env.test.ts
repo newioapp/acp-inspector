@@ -82,6 +82,18 @@ describe('getShellEnv identity overlay', () => {
     expect(Object.keys(env).some((k) => k.includes('Configuring'))).toBe(false);
   });
 
+  it('drops per-process shell bookkeeping variables', async () => {
+    execFileYields(delimited(['_=/usr/bin/env', 'PWD=/tmp/source', 'OLDPWD=/', 'SHLVL=2', 'PATH=/usr/bin'].join('\0')));
+
+    const env = await getShellEnv('/bin/zsh');
+
+    expect(env.PATH).toBe('/usr/bin'); // real vars kept
+    expect(env._).toBeUndefined();
+    expect(env.PWD).toBeUndefined();
+    expect(env.OLDPWD).toBeUndefined();
+    expect(env.SHLVL).toBeUndefined();
+  });
+
   it('falls back to raw output when delimiters are absent', async () => {
     execFileYields(['PATH=/usr/bin', 'EDITOR=vim'].join('\0'));
 

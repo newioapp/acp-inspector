@@ -16,6 +16,17 @@ import { userInfo } from 'os';
 const SUPPORTED_SHELL_NAMES = new Set(['zsh', 'bash']);
 
 /**
+ * Per-process shell bookkeeping variables that must not be carried across a
+ * process boundary. They reflect state of the sourcing subshell, not the
+ * user's environment:
+ *   _      — path of the last command the shell exec'd (e.g. /usr/bin/env)
+ *   PWD    — the sourcing shell's cwd; would conflict with the agent's real cwd
+ *   OLDPWD — previous `cd` target
+ *   SHLVL  — shell-nesting counter; a real shell maintains its own
+ */
+const TRANSIENT_VARS = new Set(['_', 'PWD', 'OLDPWD', 'SHLVL']);
+
+/**
  * Authoritative identity environment derived from the OS password database
  * (getpwuid of the process's real uid), NOT from the shell or process.env.
  *
@@ -127,7 +138,11 @@ function resolveFromShell(shell: string): Promise<Record<string, string>> {
       for (const entry of body.split('\0')) {
         const idx = entry.indexOf('=');
         if (idx > 0) {
-          env[entry.slice(0, idx)] = entry.slice(idx + 1);
+          const key = entry.slice(0, idx);
+          // Drop per-process shell bookkeeping; it's stale once handed to the agent.
+          if (!TRANSIENT_VARS.has(key)) {
+            env[key] = entry.slice(idx + 1);
+          }
         }
       }
       // Overlay identity last — a profile script could have clobbered it, and
