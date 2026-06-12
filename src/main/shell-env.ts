@@ -50,6 +50,16 @@ function getIdentityEnv(): Record<string, string> {
 export const ENVIRONMENT_SOURCE = 'environment';
 
 /**
+ * Marker bracketing the `env` output. Login/interactive profile scripts
+ * (.zprofile, .zshrc) are sourced before our command runs and may print
+ * banners to stdout (e.g. "Configuring from .zprofile"). That text would
+ * otherwise be parsed as a bogus environment variable. We print this marker
+ * before and after `env` and keep only the content between the two markers,
+ * discarding anything the profile emitted.
+ */
+const ENV_DELIMITER = '__ACP_INSPECTOR_SHELL_ENV_DELIMITER__';
+
+/**
  * List shells installed on the system that we support.
  * Reads /etc/shells and filters to shells whose basename is zsh or bash.
  * Falls back to ['environment'] if no supported shell is found.
@@ -95,7 +105,10 @@ function resolveFromShell(shell: string): Promise<Record<string, string>> {
     // Seed the sourcing shell with the correct identity so profile scripts that
     // reference $HOME/$USER (nvm, pyenv, etc.) resolve against the real user.
     const spawnEnv = { TERM: 'dumb', ...identity };
-    execFile(shell, ['-ilc', 'env -0'], { encoding: 'utf8', timeout: 10_000, env: spawnEnv }, (err, stdout) => {
+    // Bracket `env` with a marker so we can strip any banner a profile script
+    // printed to stdout during shell startup.
+    const command = `printf %s '${ENV_DELIMITER}'; env -0; printf %s '${ENV_DELIMITER}'`;
+    execFile(shell, ['-ilc', command], { encoding: 'utf8', timeout: 10_000, env: spawnEnv }, (err, stdout) => {
       if (err || !stdout) {
         // Even if sourcing fails, return the authoritative identity so callers
         // (and the spawned agent) still get a correct USER/LOGNAME/HOME.
@@ -103,8 +116,15 @@ function resolveFromShell(shell: string): Promise<Record<string, string>> {
         return;
       }
 
+      // Keep only what's between the two markers; anything a profile printed
+      // lands before the first marker and is discarded. Fall back to the raw
+      // output if markers are missing (unexpected — e.g. printf unavailable).
+      const first = stdout.indexOf(ENV_DELIMITER);
+      const last = stdout.lastIndexOf(ENV_DELIMITER);
+      const body = first !== -1 && last !== first ? stdout.slice(first + ENV_DELIMITER.length, last) : stdout;
+
       const env: Record<string, string> = {};
-      for (const entry of stdout.split('\0')) {
+      for (const entry of body.split('\0')) {
         const idx = entry.indexOf('=');
         if (idx > 0) {
           env[entry.slice(0, idx)] = entry.slice(idx + 1);

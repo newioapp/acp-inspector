@@ -18,6 +18,13 @@ import { getShellEnv, ENVIRONMENT_SOURCE } from '../shell-env';
 
 const IDENTITY = { username: 'alice', homedir: '/Users/alice', shell: '/bin/zsh' };
 
+const DELIM = '__ACP_INSPECTOR_SHELL_ENV_DELIMITER__';
+
+/** Wrap an env body in the delimiters the real shell command emits. */
+function delimited(body: string): string {
+  return `${DELIM}${body}${DELIM}`;
+}
+
 /** Drive the execFile mock to invoke its callback with the given stdout. */
 function execFileYields(stdout: string | null, err: Error | null = null): void {
   execFileMock.mockImplementation((_shell, _args, _opts, cb: (e: Error | null, out: string) => void) => {
@@ -60,6 +67,28 @@ describe('getShellEnv identity overlay', () => {
     expect(env.LOGNAME).toBe('alice');
     expect(env.HOME).toBe('/Users/alice');
     expect(env.PATH).toBe('/opt/homebrew/bin'); // non-identity vars preserved
+  });
+
+  it('strips a banner a profile printed before the env output', async () => {
+    // .zprofile printed a line to stdout before `env` ran.
+    const banner = 'Configuring from .zprofile\n';
+    execFileYields(banner + delimited(['PATH=/usr/bin', 'EDITOR=vim'].join('\0')));
+
+    const env = await getShellEnv('/bin/zsh');
+
+    expect(env.PATH).toBe('/usr/bin');
+    expect(env.EDITOR).toBe('vim');
+    // No junk key built from the banner text.
+    expect(Object.keys(env).some((k) => k.includes('Configuring'))).toBe(false);
+  });
+
+  it('falls back to raw output when delimiters are absent', async () => {
+    execFileYields(['PATH=/usr/bin', 'EDITOR=vim'].join('\0'));
+
+    const env = await getShellEnv('/bin/zsh');
+
+    expect(env.PATH).toBe('/usr/bin');
+    expect(env.EDITOR).toBe('vim');
   });
 
   it('seeds the sourcing shell with the correct identity', async () => {
