@@ -35,6 +35,9 @@ export interface MainToRendererEvents {
     readonly sessionId: string;
     readonly modelId: string;
   };
+  readonly 'native-theme-updated': {
+    readonly shouldUseDarkColors: boolean;
+  };
 }
 
 /** All push event channel names. */
@@ -47,4 +50,5 @@ export const EVENT_CHANNELS: { readonly [K in keyof MainToRendererEvents]: K } =
   'available-commands': 'available-commands',
   'mode-changed': 'mode-changed',
   'model-changed': 'model-changed',
+  'native-theme-updated': 'native-theme-updated',
 };
