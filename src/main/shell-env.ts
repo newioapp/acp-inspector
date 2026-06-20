@@ -71,14 +71,43 @@ export const ENVIRONMENT_SOURCE = 'environment';
 const ENV_DELIMITER = '__ACP_INSPECTOR_SHELL_ENV_DELIMITER__';
 
 /**
+ * The user's login shell from the OS password database, if it's one we support.
+ *
+ * This is the shell where users actually configure their PATH (nvm, pyenv,
+ * homebrew, etc.), so it is the correct default to source from — not whatever
+ * happens to be listed first in /etc/shells. On macOS the default login shell
+ * is zsh, but /etc/shells lists /bin/bash before /bin/zsh; a tool installed
+ * only via .zshrc (e.g. an nvm-managed node bin) is invisible when we source
+ * bash, which surfaces as a "command not found" ENOENT when spawning the agent.
+ *
+ * Returns undefined when the login shell is unknown or unsupported, in which
+ * case callers fall back to the /etc/shells order.
+ */
+function getLoginShell(): string | undefined {
+  try {
+    const shell = userInfo().shell;
+    if (typeof shell === 'string' && SUPPORTED_SHELL_NAMES.has(shell.split('/').pop() ?? '')) {
+      return shell;
+    }
+  } catch {
+    // userInfo() can throw if the uid is absent from the password database.
+  }
+  return undefined;
+}
+
+/**
  * List shells installed on the system that we support.
  * Reads /etc/shells and filters to shells whose basename is zsh or bash.
+ *
+ * The user's login shell is moved to the front (and added if it isn't listed)
+ * so it becomes the default selection — that's where PATH is configured.
  * Falls back to ['environment'] if no supported shell is found.
  */
 export function listAvailableShells(): string[] {
+  let listed: string[] = [];
   try {
     const content = readFileSync('/etc/shells', 'utf8');
-    const shells = content
+    listed = content
       .split('\n')
       .map((line) => line.trim())
       .filter((line) => {
@@ -88,10 +117,13 @@ export function listAvailableShells(): string[] {
         const basename = line.split('/').pop() ?? '';
         return SUPPORTED_SHELL_NAMES.has(basename);
       });
-    return shells.length > 0 ? shells : [ENVIRONMENT_SOURCE];
   } catch {
-    return [ENVIRONMENT_SOURCE];
+    listed = [];
   }
+
+  const login = getLoginShell();
+  const ordered = login ? [login, ...listed.filter((s) => s !== login)] : listed;
+  return ordered.length > 0 ? ordered : [ENVIRONMENT_SOURCE];
 }
 
 /**
