@@ -56,6 +56,7 @@ const api: InspectorAPI = {
   onAvailableCommands: (cb) => onEvent(EVENT_CHANNELS['available-commands'], cb),
   onModeChanged: (cb) => onEvent(EVENT_CHANNELS['mode-changed'], cb),
   onModelChanged: (cb) => onEvent(EVENT_CHANNELS['model-changed'], cb),
+  onNativeThemeUpdated: (cb) => onEvent(EVENT_CHANNELS['native-theme-updated'], cb),
 };
 
 contextBridge.exposeInMainWorld('api', api);

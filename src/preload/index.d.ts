@@ -13,6 +13,7 @@ export interface InspectorAPI extends IpcApi {
   onAvailableCommands(callback: (data: MainToRendererEvents['available-commands']) => void): () => void;
   onModeChanged(callback: (data: MainToRendererEvents['mode-changed']) => void): () => void;
   onModelChanged(callback: (data: MainToRendererEvents['model-changed']) => void): () => void;
+  onNativeThemeUpdated(callback: (data: MainToRendererEvents['native-theme-updated']) => void): () => void;
 }
 
 declare global {

@@ -178,6 +178,14 @@ void app.whenReady().then(async () => {
   // Apply persisted theme
   nativeTheme.themeSource = store.get('themeSource');
 
+  // Forward OS-level theme changes to the renderer so a 'system' theme follows
+  // the system appearance while the app is running.
+  nativeTheme.on('updated', () => {
+    mainWindowManager.send(EVENT_CHANNELS['native-theme-updated'], {
+      shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
+    });
+  });
+
   // Register IPC handlers
   const ipcHandler = new IpcHandler({ store, connectionManager, mainState, slashCommandStore });
   registerIpcHandlers(ipcHandler);

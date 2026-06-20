@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Dropdown, Label, Modal } from './ui';
+import { applyTheme } from '../theme';
 import type { ThemeSource } from '../../../shared/types';
 
 const THEME_OPTIONS = [
@@ -22,12 +23,7 @@ export function SettingsPanel({ onClose }: { readonly onClose: () => void }): Re
   async function handleThemeChange(value: ThemeSource): Promise<void> {
     setTheme(value);
     await window.api.setTheme(value);
-    // Re-apply theme class
-    if (value === 'dark' || (value === 'system' && (await window.api.getNativeThemeDark()))) {
-      document.documentElement.classList.remove('light');
-    } else {
-      document.documentElement.classList.add('light');
-    }
+    await applyTheme();
   }
 
   return (
