@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import * as os from 'os';
+import * as path from 'path';
 import type * as acp from '@agentclientprotocol/sdk';
-import { extractSessionConfig, isMethodNotFound } from '../acp-connection-manager';
+import { extractSessionConfig, isMethodNotFound, validateCwd } from '../acp-connection-manager';
 
 /** Build a minimal NewSessionResponse with the given config-bearing fields. */
 function makeResponse(overrides: Partial<acp.NewSessionResponse>): acp.NewSessionResponse {
@@ -18,6 +20,29 @@ describe('isMethodNotFound', () => {
     expect(isMethodNotFound('nope')).toBe(false);
     expect(isMethodNotFound(null)).toBe(false);
     expect(isMethodNotFound(undefined)).toBe(false);
+  });
+});
+
+describe('validateCwd', () => {
+  it('returns null when cwd is empty or undefined (falls back to process cwd)', async () => {
+    expect(await validateCwd(undefined)).toBeNull();
+    expect(await validateCwd('')).toBeNull();
+  });
+
+  it('returns null for an existing directory', async () => {
+    expect(await validateCwd(os.tmpdir())).toBeNull();
+  });
+
+  it('returns a clear error for a non-existent directory', async () => {
+    const missing = path.join(os.tmpdir(), 'acp-inspector-does-not-exist-xyz');
+    const err = await validateCwd(missing);
+    expect(err).toBe(`Working directory does not exist: "${missing}".`);
+  });
+
+  it('returns an error when cwd points to a file, not a directory', async () => {
+    // A file that reliably exists on POSIX systems.
+    const err = await validateCwd('/etc/hosts');
+    expect(err).toBe('Working directory is not a directory: "/etc/hosts".');
   });
 });
 

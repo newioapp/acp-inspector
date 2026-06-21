@@ -68,6 +68,15 @@ export class AcpConnectionManager implements acp.Client {
     this.cwd = config.cwd || process.cwd();
 
     try {
+      // Validate the working directory up front. spawn() reports a missing cwd
+      // as an ENOENT that is indistinguishable from a missing command, so
+      // without this check a bad cwd surfaces as a misleading "command not
+      // found" for every agent.
+      const cwdError = await validateCwd(config.cwd);
+      if (cwdError) {
+        throw new Error(cwdError);
+      }
+
       const child = spawn(config.command, [...config.args], {
         stdio: ['pipe', 'pipe', 'pipe'],
         env: { ...config.envVars, TERM: 'dumb' },
@@ -125,7 +134,11 @@ export class AcpConnectionManager implements acp.Client {
         writable: tapSent.writable,
         readable: rawStream.readable.pipeThrough(tapReceived),
       };
-      void tapSent.readable.pipeTo(rawStream.writable);
+      // The pipe aborts when the agent's stdio closes — normal on disconnect
+      // and on a failed spawn. Swallow the resulting AbortError; the child
+      // 'error'/'exit' handlers already surface the real cause. Without this
+      // catch it becomes an unhandled promise rejection.
+      void tapSent.readable.pipeTo(rawStream.writable).catch(() => {});
 
       const conn = new ClientSideConnection((_agent) => this, stream);
       this.connection = conn;
@@ -405,6 +418,30 @@ export class AcpConnectionManager implements acp.Client {
   extNotification(method: string, params: Record<string, unknown>): Promise<void> {
     this.pluginRegistry.handleNotification(method, params);
     return Promise.resolve();
+  }
+}
+
+/**
+ * Validate a connection working directory before spawning the agent.
+ *
+ * Returns an error message when `cwd` is set but does not point to an existing
+ * directory, otherwise null. An empty/undefined cwd is valid — spawn falls back
+ * to the process cwd. This exists because spawn() surfaces a non-existent cwd as
+ * an ENOENT identical to a missing executable, which would otherwise be reported
+ * as a misleading "command not found".
+ */
+export async function validateCwd(cwd: string | undefined): Promise<string | null> {
+  if (!cwd) {
+    return null;
+  }
+  try {
+    const stat = await fs.stat(cwd);
+    if (!stat.isDirectory()) {
+      return `Working directory is not a directory: "${cwd}".`;
+    }
+    return null;
+  } catch {
+    return `Working directory does not exist: "${cwd}".`;
   }
 }
 
