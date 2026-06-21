@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // Mocks must be declared before importing the module under test.
 const userInfoMock = vi.fn<() => { username: string; homedir: string; shell: string }>();
 const execFileMock = vi.fn();
+const readFileSyncMock = vi.fn<() => string>();
 
 vi.mock('os', () => ({
   userInfo: () => userInfoMock(),
@@ -14,7 +15,11 @@ vi.mock('child_process', () => ({
   },
 }));
 
-import { getShellEnv, ENVIRONMENT_SOURCE } from '../shell-env';
+vi.mock('fs', () => ({
+  readFileSync: () => readFileSyncMock(),
+}));
+
+import { getShellEnv, listAvailableShells, ENVIRONMENT_SOURCE } from '../shell-env';
 
 const IDENTITY = { username: 'alice', homedir: '/Users/alice', shell: '/bin/zsh' };
 
@@ -130,5 +135,48 @@ describe('getShellEnv identity overlay', () => {
 
     expect(env.USER).toBe('root'); // no override available
     expect(env.PATH).toBe('/usr/bin');
+  });
+});
+
+describe('listAvailableShells login-shell ordering', () => {
+  // Typical macOS /etc/shells: bash is listed before zsh.
+  const ETC_SHELLS = ['# List of acceptable shells', '/bin/bash', '/bin/csh', '/bin/sh', '/bin/zsh', ''].join('\n');
+
+  beforeEach(() => {
+    userInfoMock.mockReturnValue(IDENTITY);
+    readFileSyncMock.mockReturnValue(ETC_SHELLS);
+  });
+
+  afterEach(() => {
+    readFileSyncMock.mockReset();
+    userInfoMock.mockReset();
+  });
+
+  it('puts the login shell first even when /etc/shells lists it later', () => {
+    // IDENTITY.shell is /bin/zsh, which /etc/shells lists after /bin/bash.
+    expect(listAvailableShells()).toEqual(['/bin/zsh', '/bin/bash']);
+  });
+
+  it('keeps /etc/shells order when the login shell is unsupported', () => {
+    userInfoMock.mockReturnValue({ ...IDENTITY, shell: '/usr/bin/fish' });
+    expect(listAvailableShells()).toEqual(['/bin/bash', '/bin/zsh']);
+  });
+
+  it('prepends the login shell when it is not listed in /etc/shells', () => {
+    userInfoMock.mockReturnValue({ ...IDENTITY, shell: '/opt/homebrew/bin/bash' });
+    expect(listAvailableShells()).toEqual(['/opt/homebrew/bin/bash', '/bin/bash', '/bin/zsh']);
+  });
+
+  it('falls back to environment when no supported shell is found', () => {
+    readFileSyncMock.mockReturnValue('# none\n/usr/bin/false\n');
+    userInfoMock.mockReturnValue({ ...IDENTITY, shell: '/usr/bin/false' });
+    expect(listAvailableShells()).toEqual([ENVIRONMENT_SOURCE]);
+  });
+
+  it('falls back to the login shell when /etc/shells cannot be read', () => {
+    readFileSyncMock.mockImplementation(() => {
+      throw new Error('ENOENT');
+    });
+    expect(listAvailableShells()).toEqual(['/bin/zsh']);
   });
 });
