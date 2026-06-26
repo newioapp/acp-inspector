@@ -47,6 +47,14 @@ export class AcpConnectionManager implements acp.Client {
   private supportsLoadSession = false;
   private supportsCloseSession = false;
   private cwd = '';
+  /**
+   * Per-session advertised config-option ids (the `configId` to pass to
+   * setSessionConfigOption), captured from each session's configOptions. ACP's
+   * configId is the option's `id`, which need not equal its (UX-only) `category`,
+   * so we track it rather than assuming it; absent entries fall back to the
+   * category name for legacy agents that advertise via models/modes instead.
+   */
+  private readonly sessionConfigIds = new Map<string, ConfigOptionIds>();
   private readonly pluginRegistry: ExtensionPluginRegistry;
 
   constructor(listener: AcpConnectionListener, pluginRegistry: ExtensionPluginRegistry) {
@@ -196,6 +204,7 @@ export class AcpConnectionManager implements acp.Client {
     this.supportsListSessions = false;
     this.supportsLoadSession = false;
     this.supportsCloseSession = false;
+    this.sessionConfigIds.clear();
 
     // Clean up plugin registry
     this.pluginRegistry.setConnection(null);
@@ -245,6 +254,7 @@ export class AcpConnectionManager implements acp.Client {
       })),
     });
     const { models, modes } = extractSessionConfig(result);
+    this.sessionConfigIds.set(result.sessionId, extractConfigOptionIds(result));
     return {
       sessionId: result.sessionId,
       updatedAt: new Date().toISOString(),
@@ -267,6 +277,7 @@ export class AcpConnectionManager implements acp.Client {
       })),
     });
     const { models, modes } = extractSessionConfig(result);
+    this.sessionConfigIds.set(sessionId, extractConfigOptionIds(result));
     return {
       sessionId,
       modes,
@@ -278,6 +289,7 @@ export class AcpConnectionManager implements acp.Client {
   async closeSession(sessionId: string): Promise<void> {
     const conn = this.getConnection();
     await conn.unstable_closeSession({ sessionId });
+    this.sessionConfigIds.delete(sessionId);
   }
 
   /** List existing sessions. Only works if agent advertises sessionCapabilities.list. */
@@ -340,25 +352,17 @@ export class AcpConnectionManager implements acp.Client {
 
   /** Set the session mode. */
   async setMode(sessionId: string, modeId: string): Promise<void> {
-    const conn = this.getConnection();
-    await conn.setSessionMode({ sessionId, modeId });
+    await setConfigOption(this.getConnection(), sessionId, 'mode', this.configIdFor(sessionId, 'mode'), modeId);
   }
 
   /** Set the session model. */
   async setModel(sessionId: string, modelId: string): Promise<void> {
-    const conn = this.getConnection();
-    try {
-      await conn.unstable_setSessionModel({ sessionId, modelId });
-    } catch (err: unknown) {
-      // Older agents expose model selection via the experimental
-      // `unstable_setSessionModel`; newer agents drop it in favour of the stable
-      // `setSessionConfigOption` and reply "method not found" (-32601). Only fall
-      // back in that case — a genuine failure should surface its own error.
-      if (!isMethodNotFound(err)) {
-        throw err;
-      }
-      await conn.setSessionConfigOption({ sessionId, configId: 'model', value: modelId });
-    }
+    await setConfigOption(this.getConnection(), sessionId, 'model', this.configIdFor(sessionId, 'model'), modelId);
+  }
+
+  /** The configId to set a dimension: the agent's advertised option id, else the category name. */
+  private configIdFor(sessionId: string, category: ConfigCategory): string {
+    return this.sessionConfigIds.get(sessionId)?.[category] ?? category;
   }
 
   private getConnection(): ClientSideConnection {
@@ -447,6 +451,62 @@ export async function validateCwd(cwd: string | undefined): Promise<string | nul
 
 /** A `select`-typed session config option (narrowed from the union). */
 type SelectConfigOption = Extract<acp.SessionConfigOption, { type: 'select' }>;
+
+/** A config dimension the inspector can set on a session. */
+type ConfigCategory = 'model' | 'mode';
+
+/** The advertised config-option ids for a session, by category (the `configId` to set). */
+interface ConfigOptionIds {
+  model?: string;
+  mode?: string;
+}
+
+/** The subset of an ACP connection needed to set a config dimension. */
+type ConfigOptionConnection = Pick<
+  ClientSideConnection,
+  'setSessionConfigOption' | 'setSessionMode' | 'unstable_setSessionModel'
+>;
+
+/**
+ * Set a session config dimension through the generic ACP config-option API, with the
+ * per-dimension legacy method as a fallback.
+ *
+ * setSessionConfigOption is the stable, generic setter that supersedes the dedicated
+ * model/mode methods. We try it first (using the agent's advertised option id, or the
+ * category name as a best-effort id for legacy agents). Only on a "method not found"
+ * (-32601) reply — an agent that predates the generic API — do we fall back to the
+ * per-dimension legacy method (setSessionMode / unstable_setSessionModel). Any other
+ * error (e.g. an invalid value) surfaces unchanged rather than being masked by a retry.
+ */
+export async function setConfigOption(
+  conn: ConfigOptionConnection,
+  sessionId: string,
+  category: ConfigCategory,
+  configId: string,
+  value: string,
+): Promise<void> {
+  try {
+    await conn.setSessionConfigOption({ sessionId, configId, value });
+  } catch (err: unknown) {
+    if (!isMethodNotFound(err)) {
+      throw err;
+    }
+    if (category === 'mode') {
+      await conn.setSessionMode({ sessionId, modeId: value });
+    } else {
+      await conn.unstable_setSessionModel({ sessionId, modelId: value });
+    }
+  }
+}
+
+/** Capture the advertised config-option id per category from a session response. */
+export function extractConfigOptionIds(result: acp.NewSessionResponse | acp.LoadSessionResponse): ConfigOptionIds {
+  const configOptions = result.configOptions ?? undefined;
+  return {
+    model: findSelectByCategory(configOptions, 'model')?.id,
+    mode: findSelectByCategory(configOptions, 'mode')?.id,
+  };
+}
 
 /** JSON-RPC "method not found" — the agent does not implement the requested method. */
 const JSON_RPC_METHOD_NOT_FOUND = -32601;

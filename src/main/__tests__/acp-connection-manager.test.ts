@@ -1,8 +1,26 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import * as os from 'os';
 import * as path from 'path';
 import type * as acp from '@agentclientprotocol/sdk';
-import { extractSessionConfig, isMethodNotFound, validateCwd } from '../acp-connection-manager';
+import {
+  extractConfigOptionIds,
+  extractSessionConfig,
+  isMethodNotFound,
+  setConfigOption,
+  validateCwd,
+} from '../acp-connection-manager';
+
+type ConfigOptionConnection = Parameters<typeof setConfigOption>[0];
+
+/** Mock connection exposing the three setters setConfigOption may call. */
+function mockConn(overrides: Partial<Record<keyof ConfigOptionConnection, unknown>> = {}): ConfigOptionConnection {
+  return {
+    setSessionConfigOption: vi.fn().mockResolvedValue(undefined),
+    setSessionMode: vi.fn().mockResolvedValue(undefined),
+    unstable_setSessionModel: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  } as unknown as ConfigOptionConnection;
+}
 
 /** Build a minimal NewSessionResponse with the given config-bearing fields. */
 function makeResponse(overrides: Partial<acp.NewSessionResponse>): acp.NewSessionResponse {
@@ -159,5 +177,80 @@ describe('extractSessionConfig', () => {
       ] as acp.SessionConfigOption[],
     });
     expect(extractSessionConfig(result).models).toBeUndefined();
+  });
+});
+
+describe('extractConfigOptionIds', () => {
+  it('captures the advertised option id per category (id need not equal category)', () => {
+    const result = makeResponse({
+      configOptions: [
+        { type: 'select', category: 'model', id: 'model-selector', name: 'Model', currentValue: 'a', options: [] },
+        { type: 'select', category: 'mode', id: 'reasoning-mode', name: 'Mode', currentValue: 'x', options: [] },
+      ] as acp.SessionConfigOption[],
+    });
+
+    expect(extractConfigOptionIds(result)).toEqual({ model: 'model-selector', mode: 'reasoning-mode' });
+  });
+
+  it('returns undefined ids for a legacy agent that advertises no configOptions', () => {
+    const result = makeResponse({
+      models: { availableModels: [{ modelId: 'm1', name: 'M1' }], currentModelId: 'm1' },
+      modes: { availableModes: [{ id: 'fast', name: 'Fast' }], currentModeId: 'fast' },
+    });
+
+    expect(extractConfigOptionIds(result)).toEqual({ model: undefined, mode: undefined });
+  });
+});
+
+describe('setConfigOption', () => {
+  it('sets a model via setSessionConfigOption with the given configId; no legacy call', async () => {
+    const conn = mockConn();
+    await setConfigOption(conn, 'sess-1', 'model', 'model-selector', 'gpt-5');
+
+    expect(conn.setSessionConfigOption).toHaveBeenCalledWith({
+      sessionId: 'sess-1',
+      configId: 'model-selector',
+      value: 'gpt-5',
+    });
+    expect(conn.unstable_setSessionModel).not.toHaveBeenCalled();
+  });
+
+  it('sets a mode via setSessionConfigOption with the given configId; no legacy call', async () => {
+    const conn = mockConn();
+    await setConfigOption(conn, 'sess-1', 'mode', 'mode', 'plan');
+
+    expect(conn.setSessionConfigOption).toHaveBeenCalledWith({ sessionId: 'sess-1', configId: 'mode', value: 'plan' });
+    expect(conn.setSessionMode).not.toHaveBeenCalled();
+  });
+
+  it('falls back to unstable_setSessionModel for model when generic API is method-not-found', async () => {
+    const conn = mockConn({
+      setSessionConfigOption: vi.fn().mockRejectedValue({ code: -32601, message: 'Method not found' }),
+    });
+
+    await setConfigOption(conn, 'sess-1', 'model', 'model', 'gpt-5');
+
+    expect(conn.unstable_setSessionModel).toHaveBeenCalledWith({ sessionId: 'sess-1', modelId: 'gpt-5' });
+  });
+
+  it('falls back to setSessionMode for mode when generic API is method-not-found', async () => {
+    const conn = mockConn({
+      setSessionConfigOption: vi.fn().mockRejectedValue({ code: -32601, message: 'Method not found' }),
+    });
+
+    await setConfigOption(conn, 'sess-1', 'mode', 'mode', 'plan');
+
+    expect(conn.setSessionMode).toHaveBeenCalledWith({ sessionId: 'sess-1', modeId: 'plan' });
+  });
+
+  it('surfaces a non method-not-found error without falling back', async () => {
+    const conn = mockConn({
+      setSessionConfigOption: vi.fn().mockRejectedValue({ code: -32602, message: 'Invalid model' }),
+    });
+
+    await expect(setConfigOption(conn, 'sess-1', 'model', 'model', 'bad')).rejects.toMatchObject({
+      message: 'Invalid model',
+    });
+    expect(conn.unstable_setSessionModel).not.toHaveBeenCalled();
   });
 });
