@@ -126,9 +126,10 @@ void app.whenReady().then(async () => {
             break;
           }
           case 'current_mode_update': {
-            const modeId = inner.currentModeId;
-            mainState.updateSessionMode(sessionId, modeId);
-            mainWindowManager.send(EVENT_CHANNELS['mode-changed'], { sessionId, modeId });
+            // Legacy mode echo: normalized to the generic 'mode' config option.
+            const value = inner.currentModeId;
+            mainState.updateSessionConfigOption(sessionId, 'mode', value);
+            mainWindowManager.send(EVENT_CHANNELS['config-option-changed'], { sessionId, configId: 'mode', value });
             break;
           }
           case 'config_option_update': {
@@ -136,13 +137,12 @@ void app.whenReady().then(async () => {
               if (opt.type !== 'select') {
                 continue;
               }
-              if (opt.category === 'mode') {
-                mainState.updateSessionMode(sessionId, opt.currentValue);
-                mainWindowManager.send(EVENT_CHANNELS['mode-changed'], { sessionId, modeId: opt.currentValue });
-              } else if (opt.category === 'model') {
-                mainState.updateSessionModel(sessionId, opt.currentValue);
-                mainWindowManager.send(EVENT_CHANNELS['model-changed'], { sessionId, modelId: opt.currentValue });
-              }
+              mainState.updateSessionConfigOption(sessionId, opt.id, opt.currentValue);
+              mainWindowManager.send(EVENT_CHANNELS['config-option-changed'], {
+                sessionId,
+                configId: opt.id,
+                value: opt.currentValue,
+              });
             }
             break;
           }

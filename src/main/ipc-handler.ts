@@ -135,7 +135,7 @@ export class IpcHandler implements IpcApi {
     const existing = new Map(this.mainState.sessions.map((s) => [s.sessionId, s]));
     const merged = listed.map((s) => {
       const prev = existing.get(s.sessionId);
-      return prev ? { ...s, modes: prev.modes, models: prev.models, loaded: prev.loaded } : s;
+      return prev ? { ...s, configOptions: prev.configOptions, loaded: prev.loaded } : s;
     });
     this.mainState.sessions = merged;
     return merged;
@@ -196,13 +196,8 @@ export class IpcHandler implements IpcApi {
     this.store.set('lastShell', shell);
   }
 
-  async setMode(sessionId: string, modeId: string): Promise<void> {
-    await this.connectionManager.setMode(sessionId, modeId);
-    this.mainState.updateSessionMode(sessionId, modeId);
-  }
-
-  async setModel(sessionId: string, modelId: string): Promise<void> {
-    await this.connectionManager.setModel(sessionId, modelId);
-    this.mainState.updateSessionModel(sessionId, modelId);
+  async setConfigOption(sessionId: string, configId: string, value: string): Promise<void> {
+    await this.connectionManager.setConfigOption(sessionId, configId, value);
+    this.mainState.updateSessionConfigOption(sessionId, configId, value);
   }
 }

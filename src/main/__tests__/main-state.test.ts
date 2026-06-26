@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { MainInspectorState } from '../main-state';
+import type { InspectorConfigOption, InspectorSessionInfo } from '../../shared/types';
 
 describe('MainInspectorState', () => {
   let state: MainInspectorState;
@@ -43,31 +44,43 @@ describe('MainInspectorState', () => {
     });
   });
 
-  describe('updateSessionMode', () => {
-    it('updates mode for matching session with modes', () => {
-      state.sessions = [{ sessionId: 's1', modes: { currentModeId: 'old', availableModes: [] } }];
-      state.updateSessionMode('s1', 'new');
-      expect(state.sessions[0].modes?.currentModeId).toBe('new');
+  describe('updateSessionConfigOption', () => {
+    const option = (id: string, currentValue: string): InspectorConfigOption => ({
+      id,
+      name: id,
+      currentValue,
+      options: [],
+    });
+    const sessionWith = (configOptions: InspectorConfigOption[]): InspectorSessionInfo => ({
+      sessionId: 's1',
+      configOptions,
+    });
+    const valueOf = (id: string): string | undefined =>
+      state.sessions[0].configOptions.find((o) => o.id === id)?.currentValue;
+
+    it('updates the matching option for the matching session by configId', () => {
+      state.sessions = [sessionWith([option('mode', 'old')])];
+      state.updateSessionConfigOption('s1', 'mode', 'new');
+      expect(valueOf('mode')).toBe('new');
     });
 
-    it('does not update session without modes', () => {
-      state.sessions = [{ sessionId: 's1' }];
-      state.updateSessionMode('s1', 'new');
-      expect(state.sessions[0].modes).toBeUndefined();
+    it('leaves other options on the session untouched', () => {
+      state.sessions = [sessionWith([option('mode', 'm-old'), option('effort', 'e-old')])];
+      state.updateSessionConfigOption('s1', 'effort', 'e-new');
+      expect(valueOf('mode')).toBe('m-old');
+      expect(valueOf('effort')).toBe('e-new');
     });
 
-    it('does not update non-matching session', () => {
-      state.sessions = [{ sessionId: 's1', modes: { currentModeId: 'old', availableModes: [] } }];
-      state.updateSessionMode('s2', 'new');
-      expect(state.sessions[0].modes?.currentModeId).toBe('old');
+    it('does not update an unknown configId', () => {
+      state.sessions = [sessionWith([option('mode', 'old')])];
+      state.updateSessionConfigOption('s1', 'model', 'new');
+      expect(valueOf('mode')).toBe('old');
     });
-  });
 
-  describe('updateSessionModel', () => {
-    it('updates model for matching session with models', () => {
-      state.sessions = [{ sessionId: 's1', models: { currentModelId: 'old', availableModels: [] } }];
-      state.updateSessionModel('s1', 'new');
-      expect(state.sessions[0].models?.currentModelId).toBe('new');
+    it('does not update a non-matching session', () => {
+      state.sessions = [sessionWith([option('mode', 'old')])];
+      state.updateSessionConfigOption('s2', 'mode', 'new');
+      expect(valueOf('mode')).toBe('old');
     });
   });
 
@@ -121,7 +134,7 @@ describe('MainInspectorState', () => {
 
   describe('onDisconnected', () => {
     it('resets all connection state', () => {
-      state.sessions = [{ sessionId: 's1' }];
+      state.sessions = [{ sessionId: 's1', configOptions: [] }];
       state.activeSessionId = 's1';
       state.prompting = true;
       state.connectedCommand = 'test';

@@ -2,17 +2,11 @@ import { describe, it, expect, vi } from 'vitest';
 import * as os from 'os';
 import * as path from 'path';
 import type * as acp from '@agentclientprotocol/sdk';
-import {
-  extractConfigOptionIds,
-  extractSessionConfig,
-  isMethodNotFound,
-  setConfigOption,
-  validateCwd,
-} from '../acp-connection-manager';
+import { applyConfigOption, extractConfigOptions, isMethodNotFound, validateCwd } from '../acp-connection-manager';
 
-type ConfigOptionConnection = Parameters<typeof setConfigOption>[0];
+type ConfigOptionConnection = Parameters<typeof applyConfigOption>[0];
 
-/** Mock connection exposing the three setters setConfigOption may call. */
+/** Mock connection exposing the three setters applyConfigOption may call. */
 function mockConn(overrides: Partial<Record<keyof ConfigOptionConnection, unknown>> = {}): ConfigOptionConnection {
   return {
     setSessionConfigOption: vi.fn().mockResolvedValue(undefined),
@@ -64,73 +58,77 @@ describe('validateCwd', () => {
   });
 });
 
-describe('extractSessionConfig', () => {
-  it('derives models/modes from configOptions', () => {
+describe('extractConfigOptions', () => {
+  it('returns every select config option generically, preserving order and ids', () => {
     const result = makeResponse({
       configOptions: [
-        {
-          type: 'select',
-          category: 'model',
-          id: 'model',
-          name: 'Model',
-          currentValue: 'gpt-4',
-          options: [
-            { value: 'gpt-4', name: 'GPT-4' },
-            { value: 'gpt-3.5', name: 'GPT-3.5', description: 'Faster' },
-          ],
-        },
         {
           type: 'select',
           category: 'mode',
           id: 'mode',
           name: 'Mode',
-          currentValue: 'code',
-          options: [{ value: 'code', name: 'Code' }],
+          currentValue: 'plan',
+          options: [
+            { value: 'plan', name: 'Plan' },
+            { value: 'code', name: 'Code' },
+          ],
         },
-      ] as acp.SessionConfigOption[],
-    });
-
-    const { models, modes } = extractSessionConfig(result);
-    expect(models).toEqual({
-      availableModels: [
-        { modelId: 'gpt-4', name: 'GPT-4', description: null },
-        { modelId: 'gpt-3.5', name: 'GPT-3.5', description: 'Faster' },
-      ],
-      currentModelId: 'gpt-4',
-    });
-    expect(modes).toEqual({
-      availableModes: [{ id: 'code', name: 'Code', description: null }],
-      currentModeId: 'code',
-    });
-  });
-
-  it('prefers configOptions over legacy models/modes', () => {
-    const result = makeResponse({
-      configOptions: [
         {
           type: 'select',
           category: 'model',
           id: 'model',
           name: 'Model',
-          currentValue: 'new',
-          options: [{ value: 'new', name: 'New' }],
+          currentValue: 'opus',
+          options: [{ value: 'opus', name: 'Opus', description: 'Best' }],
+        },
+        {
+          // A new dimension (effort) renders with no inspector code referencing it. Note its
+          // category ('thought_level') differs from its id ('effort'); the id is what matters.
+          type: 'select',
+          category: 'thought_level',
+          id: 'effort',
+          name: 'Effort',
+          currentValue: 'high',
+          options: [
+            { value: 'low', name: 'Low' },
+            { value: 'high', name: 'High' },
+          ],
         },
       ] as acp.SessionConfigOption[],
-      models: { availableModels: [{ modelId: 'legacy', name: 'Legacy' }], currentModelId: 'legacy' },
     });
 
-    expect(extractSessionConfig(result).models?.currentModelId).toBe('new');
-  });
-
-  it('falls back to legacy models/modes when configOptions is absent', () => {
-    const result = makeResponse({
-      models: { availableModels: [{ modelId: 'm1', name: 'M1' }], currentModelId: 'm1' },
-      modes: { availableModes: [{ id: 'fast', name: 'Fast' }], currentModeId: 'fast' },
-    });
-
-    const { models, modes } = extractSessionConfig(result);
-    expect(models?.currentModelId).toBe('m1');
-    expect(modes?.currentModeId).toBe('fast');
+    expect(extractConfigOptions(result)).toEqual([
+      {
+        id: 'mode',
+        name: 'Mode',
+        description: undefined,
+        category: 'mode',
+        currentValue: 'plan',
+        options: [
+          { value: 'plan', name: 'Plan', description: undefined },
+          { value: 'code', name: 'Code', description: undefined },
+        ],
+      },
+      {
+        id: 'model',
+        name: 'Model',
+        description: undefined,
+        category: 'model',
+        currentValue: 'opus',
+        options: [{ value: 'opus', name: 'Opus', description: 'Best' }],
+      },
+      {
+        id: 'effort',
+        name: 'Effort',
+        description: undefined,
+        category: 'thought_level',
+        currentValue: 'high',
+        options: [
+          { value: 'low', name: 'Low', description: undefined },
+          { value: 'high', name: 'High', description: undefined },
+        ],
+      },
+    ]);
   });
 
   it('flattens grouped select options', () => {
@@ -157,90 +155,104 @@ describe('extractSessionConfig', () => {
       ] as acp.SessionConfigOption[],
     });
 
-    expect(extractSessionConfig(result).models?.availableModels).toEqual([
-      { modelId: 'a', name: 'A', description: null },
-      { modelId: 'b', name: 'B', description: null },
-      { modelId: 'c', name: 'C', description: null },
+    expect(extractConfigOptions(result)[0].options).toEqual([
+      { value: 'a', name: 'A', description: undefined },
+      { value: 'b', name: 'B', description: undefined },
+      { value: 'c', name: 'C', description: undefined },
     ]);
   });
 
-  it('returns undefined for both when nothing is provided', () => {
-    const { models, modes } = extractSessionConfig(makeResponse({}));
-    expect(models).toBeUndefined();
-    expect(modes).toBeUndefined();
-  });
-
-  it('ignores non-select and non-matching config options', () => {
+  it('skips non-select config options', () => {
     const result = makeResponse({
       configOptions: [
         { type: 'boolean', category: 'model', id: 'x', name: 'X', currentValue: true },
       ] as acp.SessionConfigOption[],
     });
-    expect(extractSessionConfig(result).models).toBeUndefined();
-  });
-});
-
-describe('extractConfigOptionIds', () => {
-  it('captures the advertised option id per category (id need not equal category)', () => {
-    const result = makeResponse({
-      configOptions: [
-        { type: 'select', category: 'model', id: 'model-selector', name: 'Model', currentValue: 'a', options: [] },
-        { type: 'select', category: 'mode', id: 'reasoning-mode', name: 'Mode', currentValue: 'x', options: [] },
-      ] as acp.SessionConfigOption[],
-    });
-
-    expect(extractConfigOptionIds(result)).toEqual({ model: 'model-selector', mode: 'reasoning-mode' });
+    expect(extractConfigOptions(result)).toEqual([]);
   });
 
-  it('returns undefined ids for a legacy agent that advertises no configOptions', () => {
+  it('synthesizes generic mode/model options (ids "mode"/"model") from legacy fields', () => {
     const result = makeResponse({
-      models: { availableModels: [{ modelId: 'm1', name: 'M1' }], currentModelId: 'm1' },
+      models: { availableModels: [{ modelId: 'm1', name: 'M1', description: 'desc' }], currentModelId: 'm1' },
       modes: { availableModes: [{ id: 'fast', name: 'Fast' }], currentModeId: 'fast' },
     });
 
-    expect(extractConfigOptionIds(result)).toEqual({ model: undefined, mode: undefined });
+    expect(extractConfigOptions(result)).toEqual([
+      {
+        id: 'mode',
+        name: 'Mode',
+        currentValue: 'fast',
+        options: [{ value: 'fast', name: 'Fast', description: undefined }],
+      },
+      {
+        id: 'model',
+        name: 'Model',
+        currentValue: 'm1',
+        options: [{ value: 'm1', name: 'M1', description: 'desc' }],
+      },
+    ]);
+  });
+
+  it('prefers configOptions over the legacy fields', () => {
+    const result = makeResponse({
+      configOptions: [
+        { type: 'select', category: 'model', id: 'model', name: 'Model', currentValue: 'new', options: [] },
+      ] as acp.SessionConfigOption[],
+      models: { availableModels: [{ modelId: 'legacy', name: 'Legacy' }], currentModelId: 'legacy' },
+    });
+
+    const options = extractConfigOptions(result);
+    expect(options).toHaveLength(1);
+    expect(options[0].currentValue).toBe('new');
+  });
+
+  it('returns an empty list when nothing is advertised', () => {
+    expect(extractConfigOptions(makeResponse({}))).toEqual([]);
   });
 });
 
-describe('setConfigOption', () => {
-  it('sets a model via setSessionConfigOption with the given configId; no legacy call', async () => {
+describe('applyConfigOption', () => {
+  it('sets any dimension via setSessionConfigOption with its configId; no legacy call', async () => {
     const conn = mockConn();
-    await setConfigOption(conn, 'sess-1', 'model', 'model-selector', 'gpt-5');
+    await applyConfigOption(conn, 'sess-1', 'effort', 'high');
 
     expect(conn.setSessionConfigOption).toHaveBeenCalledWith({
       sessionId: 'sess-1',
-      configId: 'model-selector',
-      value: 'gpt-5',
+      configId: 'effort',
+      value: 'high',
     });
+    expect(conn.setSessionMode).not.toHaveBeenCalled();
     expect(conn.unstable_setSessionModel).not.toHaveBeenCalled();
   });
 
-  it('sets a mode via setSessionConfigOption with the given configId; no legacy call', async () => {
-    const conn = mockConn();
-    await setConfigOption(conn, 'sess-1', 'mode', 'mode', 'plan');
-
-    expect(conn.setSessionConfigOption).toHaveBeenCalledWith({ sessionId: 'sess-1', configId: 'mode', value: 'plan' });
-    expect(conn.setSessionMode).not.toHaveBeenCalled();
-  });
-
-  it('falls back to unstable_setSessionModel for model when generic API is method-not-found', async () => {
+  it('falls back to unstable_setSessionModel for configId "model" on method-not-found', async () => {
     const conn = mockConn({
       setSessionConfigOption: vi.fn().mockRejectedValue({ code: -32601, message: 'Method not found' }),
     });
 
-    await setConfigOption(conn, 'sess-1', 'model', 'model', 'gpt-5');
+    await applyConfigOption(conn, 'sess-1', 'model', 'gpt-5');
 
     expect(conn.unstable_setSessionModel).toHaveBeenCalledWith({ sessionId: 'sess-1', modelId: 'gpt-5' });
   });
 
-  it('falls back to setSessionMode for mode when generic API is method-not-found', async () => {
+  it('falls back to setSessionMode for configId "mode" on method-not-found', async () => {
     const conn = mockConn({
       setSessionConfigOption: vi.fn().mockRejectedValue({ code: -32601, message: 'Method not found' }),
     });
 
-    await setConfigOption(conn, 'sess-1', 'mode', 'mode', 'plan');
+    await applyConfigOption(conn, 'sess-1', 'mode', 'plan');
 
     expect(conn.setSessionMode).toHaveBeenCalledWith({ sessionId: 'sess-1', modeId: 'plan' });
+  });
+
+  it('has no legacy fallback for other dimensions: rethrows method-not-found for "effort"', async () => {
+    const conn = mockConn({
+      setSessionConfigOption: vi.fn().mockRejectedValue({ code: -32601, message: 'Method not found' }),
+    });
+
+    await expect(applyConfigOption(conn, 'sess-1', 'effort', 'high')).rejects.toMatchObject({ code: -32601 });
+    expect(conn.setSessionMode).not.toHaveBeenCalled();
+    expect(conn.unstable_setSessionModel).not.toHaveBeenCalled();
   });
 
   it('surfaces a non method-not-found error without falling back', async () => {
@@ -248,9 +260,7 @@ describe('setConfigOption', () => {
       setSessionConfigOption: vi.fn().mockRejectedValue({ code: -32602, message: 'Invalid model' }),
     });
 
-    await expect(setConfigOption(conn, 'sess-1', 'model', 'model', 'bad')).rejects.toMatchObject({
-      message: 'Invalid model',
-    });
+    await expect(applyConfigOption(conn, 'sess-1', 'model', 'bad')).rejects.toMatchObject({ message: 'Invalid model' });
     expect(conn.unstable_setSessionModel).not.toHaveBeenCalled();
   });
 });

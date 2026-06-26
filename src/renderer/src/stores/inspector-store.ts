@@ -81,8 +81,7 @@ interface InspectorActions {
   respondPermission(requestId: string, optionId: string): Promise<void>;
   removePermissionRequest(requestId: string): void;
   setAvailableCommands(sessionId: string, commands: readonly AvailableCommand[]): void;
-  updateSessionMode(sessionId: string, modeId: string): void;
-  updateSessionModel(sessionId: string, modelId: string): void;
+  updateSessionConfigOption(sessionId: string, configId: string, value: string): void;
 
   // Clear
   clearOutput(): void;
@@ -194,21 +193,14 @@ export const useInspectorStore = create<InspectorStore>((set, get) => ({
     }));
   },
 
-  updateSessionMode(sessionId: string, modeId: string): void {
+  updateSessionConfigOption(sessionId: string, configId: string, value: string): void {
     set((s) => ({
       sessions: s.sessions.map((sess) =>
-        sess.sessionId === sessionId && sess.modes
-          ? { ...sess, modes: { ...sess.modes, currentModeId: modeId } }
-          : sess,
-      ),
-    }));
-  },
-
-  updateSessionModel(sessionId: string, modelId: string): void {
-    set((s) => ({
-      sessions: s.sessions.map((sess) =>
-        sess.sessionId === sessionId && sess.models
-          ? { ...sess, models: { ...sess.models, currentModelId: modelId } }
+        sess.sessionId === sessionId
+          ? {
+              ...sess,
+              configOptions: sess.configOptions.map((o) => (o.id === configId ? { ...o, currentValue: value } : o)),
+            }
           : sess,
       ),
     }));

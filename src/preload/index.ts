@@ -44,8 +44,8 @@ const api: InspectorAPI = {
   getAvailableCommands: (sessionId) => ipcRenderer.invoke(IPC_CHANNELS.getAvailableCommands, sessionId),
   getLastShell: () => ipcRenderer.invoke(IPC_CHANNELS.getLastShell),
   setLastShell: (shell) => ipcRenderer.invoke(IPC_CHANNELS.setLastShell, shell),
-  setMode: (sessionId, modeId) => ipcRenderer.invoke(IPC_CHANNELS.setMode, sessionId, modeId),
-  setModel: (sessionId, modelId) => ipcRenderer.invoke(IPC_CHANNELS.setModel, sessionId, modelId),
+  setConfigOption: (sessionId, configId, value) =>
+    ipcRenderer.invoke(IPC_CHANNELS.setConfigOption, sessionId, configId, value),
 
   // Push events
   onConnectionStatus: (cb) => onEvent(EVENT_CHANNELS['connection-status'], cb),
@@ -54,8 +54,7 @@ const api: InspectorAPI = {
   onPermissionRequest: (cb) => onEvent(EVENT_CHANNELS['permission-request'], cb),
   onPromptDone: (cb) => onEvent(EVENT_CHANNELS['prompt-done'], cb),
   onAvailableCommands: (cb) => onEvent(EVENT_CHANNELS['available-commands'], cb),
-  onModeChanged: (cb) => onEvent(EVENT_CHANNELS['mode-changed'], cb),
-  onModelChanged: (cb) => onEvent(EVENT_CHANNELS['model-changed'], cb),
+  onConfigOptionChanged: (cb) => onEvent(EVENT_CHANNELS['config-option-changed'], cb),
   onNativeThemeUpdated: (cb) => onEvent(EVENT_CHANNELS['native-theme-updated'], cb),
 };
 

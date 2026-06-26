@@ -1,7 +1,7 @@
 /**
  * PromptInput — text area to send prompts to the active session.
  * Shows slash command autocomplete when the user types /.
- * Shows mode/model dropdowns below the input when the active session supports them.
+ * Shows one dropdown per advertised session config option (model, mode, effort, …) below the input.
  */
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { Send, StopCircle } from 'lucide-react';
@@ -16,8 +16,7 @@ export function PromptInput(): React.JSX.Element {
   const cancelPrompt = useInspectorStore((s) => s.cancelPrompt);
   const availableCommands = useInspectorStore((s) => s.availableCommands);
   const sessions = useInspectorStore((s) => s.sessions);
-  const updateSessionMode = useInspectorStore((s) => s.updateSessionMode);
-  const updateSessionModel = useInspectorStore((s) => s.updateSessionModel);
+  const updateSessionConfigOption = useInspectorStore((s) => s.updateSessionConfigOption);
   const [text, setText] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -102,20 +101,12 @@ export function PromptInput(): React.JSX.Element {
     }
   }
 
-  function handleModeChange(modeId: string): void {
+  function handleConfigChange(configId: string, value: string): void {
     if (!activeSessionId) {
       return;
     }
-    updateSessionMode(activeSessionId, modeId);
-    void window.api.setMode(activeSessionId, modeId);
-  }
-
-  function handleModelChange(modelId: string): void {
-    if (!activeSessionId) {
-      return;
-    }
-    updateSessionModel(activeSessionId, modelId);
-    void window.api.setModel(activeSessionId, modelId);
+    updateSessionConfigOption(activeSessionId, configId, value);
+    void window.api.setConfigOption(activeSessionId, configId, value);
   }
 
   return (
@@ -155,60 +146,28 @@ export function PromptInput(): React.JSX.Element {
         disabled={!activeSessionId}
       />
 
-      {/* Bottom row: mode/model dropdowns + send/cancel buttons */}
+      {/* Bottom row: one dropdown per session config option (model, mode, effort, …) + send/cancel */}
       <div className="mt-1.5 flex items-center gap-3">
-        {activeSession?.modes ? (
-          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            Mode
+        {activeSession?.configOptions.map((opt) => (
+          <label
+            key={opt.id}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground"
+            title={opt.description}
+          >
+            {opt.name}
             <select
               className="rounded border border-input bg-background px-1.5 py-0.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring"
-              value={activeSession.modes.currentModeId}
-              onChange={(e) => handleModeChange(e.target.value)}
+              value={opt.currentValue}
+              onChange={(e) => handleConfigChange(opt.id, e.target.value)}
             >
-              {activeSession.modes.availableModes.map((m) => (
-                <option key={m.id} value={m.id} title={m.description ?? undefined}>
-                  {m.name}
+              {opt.options.map((o) => (
+                <option key={o.value} value={o.value} title={o.description ?? undefined}>
+                  {o.name}
                 </option>
               ))}
             </select>
           </label>
-        ) : (
-          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            Mode
-            <select
-              className="rounded border border-input bg-background px-1.5 py-0.5 text-xs text-foreground outline-none disabled:opacity-40"
-              disabled
-            >
-              <option>—</option>
-            </select>
-          </label>
-        )}
-        {activeSession?.models ? (
-          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            Model
-            <select
-              className="rounded border border-input bg-background px-1.5 py-0.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring"
-              value={activeSession.models.currentModelId}
-              onChange={(e) => handleModelChange(e.target.value)}
-            >
-              {activeSession.models.availableModels.map((m) => (
-                <option key={m.modelId} value={m.modelId} title={m.description ?? undefined}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            Model
-            <select
-              className="rounded border border-input bg-background px-1.5 py-0.5 text-xs text-foreground outline-none disabled:opacity-40"
-              disabled
-            >
-              <option>—</option>
-            </select>
-          </label>
-        )}
+        ))}
         <div className="flex-1" />
         <div className="flex items-center gap-1">
           <Button variant="danger" onClick={() => void cancelPrompt()} disabled={!prompting}>
