@@ -147,16 +147,16 @@ export function PromptInput(): React.JSX.Element {
       />
 
       {/* Bottom row: one dropdown per session config option (model, mode, effort, …) + send/cancel */}
-      <div className="mt-1.5 flex items-center gap-3">
+      <div className="mt-1.5 flex flex-wrap items-center gap-3">
         {activeSession?.configOptions.map((opt) => (
           <label
             key={opt.id}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground"
+            className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"
             title={opt.description}
           >
-            {opt.name}
+            <span className="shrink-0">{opt.name}</span>
             <select
-              className="rounded border border-input bg-background px-1.5 py-0.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring"
+              className="min-w-0 max-w-[16rem] truncate rounded border border-input bg-background px-1.5 py-0.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring"
               value={opt.currentValue}
               onChange={(e) => handleConfigChange(opt.id, e.target.value)}
             >
