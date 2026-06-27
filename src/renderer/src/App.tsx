@@ -28,8 +28,7 @@ export function App(): React.JSX.Element {
   const setEnvVars = useInspectorStore((s) => s.setEnvVars);
   const setPrompting = useInspectorStore((s) => s.setPrompting);
   const setAvailableCommands = useInspectorStore((s) => s.setAvailableCommands);
-  const updateSessionMode = useInspectorStore((s) => s.updateSessionMode);
-  const updateSessionModel = useInspectorStore((s) => s.updateSessionModel);
+  const updateSessionConfigOption = useInspectorStore((s) => s.updateSessionConfigOption);
   const connectionStatus = useInspectorStore((s) => s.connectionStatus);
   const connectionError = useInspectorStore((s) => s.connectionError);
   const connectionPid = useInspectorStore((s) => s.connectionPid);
@@ -101,11 +100,8 @@ export function App(): React.JSX.Element {
     const unsub6 = window.api.onAvailableCommands(({ sessionId, commands }) => {
       setAvailableCommands(sessionId, commands);
     });
-    const unsub7 = window.api.onModeChanged(({ sessionId, modeId }) => {
-      updateSessionMode(sessionId, modeId);
-    });
-    const unsub8 = window.api.onModelChanged(({ sessionId, modelId }) => {
-      updateSessionModel(sessionId, modelId);
+    const unsub7 = window.api.onConfigOptionChanged(({ sessionId, configId, value }) => {
+      updateSessionConfigOption(sessionId, configId, value);
     });
     return () => {
       unsub1();
@@ -115,7 +111,6 @@ export function App(): React.JSX.Element {
       unsub5();
       unsub6();
       unsub7();
-      unsub8();
     };
   }, [
     setConnectionStatus,
@@ -124,8 +119,7 @@ export function App(): React.JSX.Element {
     addPermissionRequest,
     setPrompting,
     setAvailableCommands,
-    updateSessionMode,
-    updateSessionModel,
+    updateSessionConfigOption,
   ]);
 
   const statusColor =

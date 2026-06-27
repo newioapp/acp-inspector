@@ -8,6 +8,7 @@ import { useInspectorStore } from '../stores/inspector-store';
 import { Button } from './ui';
 import { PermissionCard } from './PermissionCard';
 import { ToolCallCard } from './ToolCallCard';
+import { summarizeConfigOptions } from '../../../shared/config-option-summary';
 import type { InspectorSessionUpdate, InspectorPermissionRequest } from '../../../shared/types';
 
 interface UpdateGroup {
@@ -29,6 +30,7 @@ const OUTPUT_ALLOWLIST = new Set([
   'usage_update',
   'current_mode_update',
   'current_model_update',
+  'config_option_update',
 ]);
 
 function getUpdateType(update: InspectorSessionUpdate): string {
@@ -262,6 +264,26 @@ export function OutputPanel(): React.JSX.Element {
                 <Cpu size={11} className="text-cyan-400" />
                 <span>{new Date(group.timestamp).toLocaleTimeString()}</span>
                 <span>Model updated</span>
+              </div>
+            );
+          }
+
+          if (group.type === 'config_option_update') {
+            const inner = group.items[group.items.length - 1].data.update;
+            if (inner.sessionUpdate !== 'config_option_update') {
+              return null;
+            }
+            const summary = summarizeConfigOptions(inner.configOptions);
+            if (!summary) {
+              return null;
+            }
+            return (
+              <div key={i} className="mb-2 flex items-center gap-2 text-[11px] text-muted-foreground">
+                <Shuffle size={11} className="text-pink-400" />
+                <span>{new Date(group.timestamp).toLocaleTimeString()}</span>
+                <span>
+                  Switched config option to <span className="font-medium text-foreground">{summary}</span>
+                </span>
               </div>
             );
           }

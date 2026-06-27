@@ -76,15 +76,11 @@ export class MainInspectorState {
     };
   }
 
-  updateSessionMode(sessionId: string, modeId: string): void {
+  updateSessionConfigOption(sessionId: string, configId: string, value: string): void {
     this.sessions = this.sessions.map((s) =>
-      s.sessionId === sessionId && s.modes ? { ...s, modes: { ...s.modes, currentModeId: modeId } } : s,
-    );
-  }
-
-  updateSessionModel(sessionId: string, modelId: string): void {
-    this.sessions = this.sessions.map((s) =>
-      s.sessionId === sessionId && s.models ? { ...s, models: { ...s.models, currentModelId: modelId } } : s,
+      s.sessionId === sessionId
+        ? { ...s, configOptions: s.configOptions.map((o) => (o.id === configId ? { ...o, currentValue: value } : o)) }
+        : s,
     );
   }
 

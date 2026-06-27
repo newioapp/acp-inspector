@@ -61,9 +61,8 @@ export interface IpcApi {
   getLastShell(): Promise<string>;
   setLastShell(shell: string): Promise<void>;
 
-  // Mode / model switching
-  setMode(sessionId: string, modeId: string): Promise<void>;
-  setModel(sessionId: string, modelId: string): Promise<void>;
+  // Session config-option switching (model, mode, effort, …)
+  setConfigOption(sessionId: string, configId: string, value: string): Promise<void>;
 }
 
 /** Channel name for each IpcApi method. */
@@ -92,6 +91,5 @@ export const IPC_CHANNELS: { readonly [K in keyof IpcApi]: string } = {
   getAvailableCommands: 'get-available-commands',
   getLastShell: 'get-last-shell',
   setLastShell: 'set-last-shell',
-  setMode: 'acp-set-mode',
-  setModel: 'acp-set-model',
+  setConfigOption: 'acp-set-config-option',
 };

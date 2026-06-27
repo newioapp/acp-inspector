@@ -27,13 +27,10 @@ export interface MainToRendererEvents {
     readonly sessionId: string;
     readonly commands: readonly AvailableCommand[];
   };
-  readonly 'mode-changed': {
+  readonly 'config-option-changed': {
     readonly sessionId: string;
-    readonly modeId: string;
-  };
-  readonly 'model-changed': {
-    readonly sessionId: string;
-    readonly modelId: string;
+    readonly configId: string;
+    readonly value: string;
   };
   readonly 'native-theme-updated': {
     readonly shouldUseDarkColors: boolean;
@@ -48,7 +45,6 @@ export const EVENT_CHANNELS: { readonly [K in keyof MainToRendererEvents]: K } =
   'permission-request': 'permission-request',
   'prompt-done': 'prompt-done',
   'available-commands': 'available-commands',
-  'mode-changed': 'mode-changed',
-  'model-changed': 'model-changed',
+  'config-option-changed': 'config-option-changed',
   'native-theme-updated': 'native-theme-updated',
 };

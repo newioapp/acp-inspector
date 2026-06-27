@@ -127,15 +127,37 @@ export interface InspectorPermissionRequest {
   readonly respondedOptionId?: string;
 }
 
-/** Inspector-enriched session info (adds loaded flag to ACP session). */
+/** A selectable value within a session config option. */
+export interface InspectorConfigOptionValue {
+  readonly value: string;
+  readonly name: string;
+  readonly description?: string;
+}
+
+/**
+ * A session config dimension rendered as a dropdown (model, mode, effort, …).
+ *
+ * `id` is the ACP option id passed to session/set_config_option; `category` is the
+ * spec's UX-only hint. The inspector renders one dropdown per option generically, so
+ * new dimensions (e.g. effort) appear with no inspector code referencing them.
+ */
+export interface InspectorConfigOption {
+  readonly id: string;
+  readonly name: string;
+  readonly description?: string;
+  readonly category?: string;
+  readonly currentValue: string;
+  readonly options: readonly InspectorConfigOptionValue[];
+}
+
+/** Inspector-enriched session info (adds loaded flag + config dropdowns to an ACP session). */
 export interface InspectorSessionInfo {
   readonly sessionId: string;
   readonly loaded?: boolean;
   readonly title?: string | null;
   readonly updatedAt?: string | null;
   readonly cwd?: string;
-  readonly modes?: SessionModeState;
-  readonly models?: SessionModelState;
+  readonly configOptions: readonly InspectorConfigOption[];
 }
 
 /** ACP agent capabilities returned from initialize, with inspector-friendly booleans. */
@@ -162,10 +184,4 @@ export interface McpServerConfig {
 }
 
 // Re-import for use in type definitions above
-import type {
-  SessionNotification,
-  RequestPermissionRequest,
-  SessionModeState,
-  SessionModelState,
-  InitializeResponse,
-} from '@agentclientprotocol/sdk';
+import type { SessionNotification, RequestPermissionRequest, InitializeResponse } from '@agentclientprotocol/sdk';
