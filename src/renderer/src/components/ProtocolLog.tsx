@@ -253,7 +253,7 @@ export function ProtocolLog(): React.JSX.Element {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 py-2 font-mono text-xs leading-relaxed select-text">
+      <div className="min-w-0 flex-1 overflow-y-auto px-4 py-2 font-mono text-xs leading-relaxed select-text">
         {filtered.map((msg) => (
           <div key={msg.id} className="mb-1">
             <span className="text-muted-foreground">{new Date(msg.timestamp).toLocaleTimeString()} </span>

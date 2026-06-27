@@ -83,9 +83,9 @@ function LocationList({ locations }: { readonly locations: readonly ToolCallLoca
   return (
     <div className="mt-1.5 space-y-0.5">
       {locations.map((loc, i) => (
-        <div key={i} className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+        <div key={i} className="flex min-w-0 items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
           <FileText size={10} className="shrink-0 opacity-50" />
-          <span>
+          <span className="min-w-0 break-all">
             {loc.path}
             {loc.line !== null && loc.line !== undefined ? `:${String(loc.line)}` : ''}
           </span>
@@ -104,9 +104,9 @@ function DiffView({ diff }: { readonly diff: Diff }): React.JSX.Element {
         className="flex w-full items-center gap-1.5 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
         onClick={() => setExpanded(!expanded)}
       >
-        <FileDiff size={10} />
-        {expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
-        <span className="font-mono">{diff.path}</span>
+        <FileDiff size={10} className="shrink-0" />
+        <span className="shrink-0">{expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}</span>
+        <span className="min-w-0 break-all text-left font-mono">{diff.path}</span>
       </button>
       {expanded && (
         <pre className="max-h-64 overflow-auto border-t border-border/50 px-2 py-1 font-mono text-[10px] leading-relaxed">
@@ -228,21 +228,21 @@ export function ToolCallCard({
   return (
     <div className="mb-2 rounded-md border border-warning/25 bg-warning/5 p-2">
       {/* Header row */}
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] text-muted-foreground">{new Date(timestamp).toLocaleTimeString()}</span>
-        <KindIcon size={12} className={kindInfo.color} />
-        <span className="text-xs font-medium text-warning">{title}</span>
-        <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${kindInfo.color} bg-foreground/5`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="shrink-0 text-[10px] text-muted-foreground">{new Date(timestamp).toLocaleTimeString()}</span>
+        <KindIcon size={12} className={`shrink-0 ${kindInfo.color}`} />
+        <span className="min-w-0 break-all text-xs font-medium text-warning">{title}</span>
+        <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${kindInfo.color} bg-foreground/5`}>
           {kindInfo.label}
         </span>
         {statusInfo && StatusIcon && (
-          <span className={`flex items-center gap-1 text-[10px] ${statusInfo.color}`}>
+          <span className={`flex shrink-0 items-center gap-1 text-[10px] ${statusInfo.color}`}>
             <StatusIcon size={10} className={status === 'in_progress' ? 'animate-spin' : ''} />
             {statusInfo.label}
           </span>
         )}
         {merged.toolCallId && (
-          <span className="ml-auto font-mono text-[9px] text-muted-foreground/50">{merged.toolCallId}</span>
+          <span className="ml-auto break-all font-mono text-[9px] text-muted-foreground/50">{merged.toolCallId}</span>
         )}
       </div>
 

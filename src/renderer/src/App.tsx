@@ -205,7 +205,7 @@ export function App(): React.JSX.Element {
               className="w-1 shrink-0 cursor-col-resize bg-border hover:bg-primary/50 active:bg-primary/50"
               onMouseDown={handleDividerMouseDown}
             />
-            <div className="flex flex-1 flex-col">
+            <div className="flex min-w-0 flex-1 flex-col">
               <OutputPanel />
               <PromptInput />
             </div>

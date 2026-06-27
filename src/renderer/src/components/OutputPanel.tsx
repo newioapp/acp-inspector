@@ -179,14 +179,14 @@ export function OutputPanel(): React.JSX.Element {
   }, [timeline.length, activeSessionId]);
 
   return (
-    <div className="flex flex-1 flex-col min-h-0">
+    <div className="flex min-w-0 flex-1 flex-col min-h-0">
       <div className="flex items-center justify-between border-b border-border px-4 py-1.5">
         <span className="text-xs font-medium text-muted-foreground">Output</span>
         <Button variant="ghost" onClick={clearOutput} className="px-1.5 py-0.5">
           <Trash2 size={11} />
         </Button>
       </div>
-      <div className="flex-1 overflow-y-auto px-4 py-2 text-xs leading-relaxed select-text">
+      <div className="min-w-0 flex-1 overflow-y-auto px-4 py-2 text-xs leading-relaxed select-text">
         {timeline.map((item, i) => {
           if (item.kind === 'permission') {
             return <PermissionCard key={`perm-${item.request.requestId}`} request={item.request} />;
@@ -246,10 +246,10 @@ export function OutputPanel(): React.JSX.Element {
             }
             const modeId = inner.currentModeId;
             return (
-              <div key={i} className="mb-2 flex items-center gap-2 text-[11px] text-muted-foreground">
-                <Shuffle size={11} className="text-pink-400" />
-                <span>{new Date(group.timestamp).toLocaleTimeString()}</span>
-                <span>
+              <div key={i} className="mb-2 flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
+                <Shuffle size={11} className="shrink-0 text-pink-400" />
+                <span className="shrink-0">{new Date(group.timestamp).toLocaleTimeString()}</span>
+                <span className="min-w-0 break-words">
                   Switched agent to <span className="font-medium text-foreground">{modeId}</span>
                 </span>
               </div>
@@ -278,10 +278,10 @@ export function OutputPanel(): React.JSX.Element {
               return null;
             }
             return (
-              <div key={i} className="mb-2 flex items-center gap-2 text-[11px] text-muted-foreground">
-                <Shuffle size={11} className="text-pink-400" />
-                <span>{new Date(group.timestamp).toLocaleTimeString()}</span>
-                <span>
+              <div key={i} className="mb-2 flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
+                <Shuffle size={11} className="shrink-0 text-pink-400" />
+                <span className="shrink-0">{new Date(group.timestamp).toLocaleTimeString()}</span>
+                <span className="min-w-0 break-words">
                   Switched config option to <span className="font-medium text-foreground">{summary}</span>
                 </span>
               </div>
